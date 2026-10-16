@@ -11,6 +11,7 @@ import type { Person } from './data.js';
 import { ServerDemo } from './ServerDemo.js';
 import { demoTheme, themes } from './themes.js';
 import { HierarchyDemo } from './HierarchyDemo.js';
+import { CustomizationDemo } from './CustomizationDemo.js';
 
 const options = (values: string[]) => values.map(value => ({ value, label: value }));
 const currency = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
@@ -125,7 +126,7 @@ export function Demo() {
         </Stack>
         <Stack direction="row" useFlexGap sx={{ gap: 2, flexWrap: 'wrap', alignItems: 'center', mb: 2 }}>
           <TextField select label="Example" size="small" sx={{ minWidth: 200 }} value={example} onChange={event => setExample(event.target.value)}>
-            <MenuItem value="people">People directory</MenuItem><MenuItem value="nested">Nested report</MenuItem><MenuItem value="server">Server adapter</MenuItem>
+            <MenuItem value="people">People directory</MenuItem><MenuItem value="nested">Nested report</MenuItem><MenuItem value="server">Server adapter</MenuItem><MenuItem value="custom">Custom components</MenuItem>
           </TextField>
           <TextField select label="Theme" size="small" value={themeId} sx={{ minWidth: 180 }} onChange={event => setThemeId(event.target.value)}>
             {themes.map(preset => <MenuItem key={preset.id} value={preset.id}>{preset.label}</MenuItem>)}
@@ -205,6 +206,7 @@ export function Demo() {
       </Paper>}
       {example === 'server' && <ServerDemo />}
       {example === 'nested' && <HierarchyDemo />}
+      {example === 'custom' && <CustomizationDemo />}
     </Container>
   </ThemeProvider>;
 }

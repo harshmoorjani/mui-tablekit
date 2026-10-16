@@ -15,9 +15,11 @@ npm ci --ignore-scripts
 npm run dev
 ```
 
-Run `npm run check` for type checks, interaction tests, package compilation, and the demo build.
+Run `npm run check` for formatting, type checks, interaction tests, package compilation, and the demo build. `npm run format` applies the checked-in Prettier configuration with `prettier-plugin-minimal-parens`.
 
 Use the Example selector for the people directory (up to 10,000 synthetic rows), nested report, or server adapter. Expand Table options for feature switches, including inline filters and a custom text-button toolbar. All records are synthetic; the playground contains no application data or credentials.
+
+The Custom components example offers two runnable implementations for each of 23 component slots, renderers, and content hooks. Select a target and implementation, try its controls, and open Component code to inspect the actual example definitions.
 
 `npm run demo:build` builds the playground into `/docs`, with relative asset paths and `.nojekyll`. Commit that folder, then configure repository Settings → Pages → Deploy from a branch → `main` → `/docs`. No workflow file or external hosting account is required; GitHub runs its own Pages deployment internally. Select Canvas or Garden for light themes, Midnight or Plum for dark themes. Pages has not been enabled or deployed by these local changes.
 
