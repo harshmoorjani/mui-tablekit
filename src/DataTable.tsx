@@ -15,6 +15,7 @@ import type { DataTableProps, FilterValue, TableLabels, TableState } from './typ
 
 const defaultLabels: TableLabels = {
   search: 'Search', empty: 'No matching rows', selectPage: 'Select this page',
+  selectFiltered: 'Select all filtered rows', selectLoaded: 'Select loaded rows',
   selectRow: id => `Select row ${id}`, selected: count => `${count} selected`,
   clearSelection: 'Clear selection', filter: header => `Filter ${header}`,
   filterMin: header => `${header} from`, filterMax: header => `${header} to`, clearFilter: 'Any',
@@ -24,6 +25,7 @@ const defaultLabels: TableLabels = {
   previousPage: 'Previous page', nextPage: 'Next page',
   firstPage: 'First page', lastPage: 'Last page',
   expandRow: id => `Expand row ${id}`, collapseRow: id => `Collapse row ${id}`,
+  expandAll: 'Expand all filtered rows', collapseAll: 'Collapse all filtered rows',
   details: 'Details', columns: 'Columns', showColumn: header => `Show ${header}`,
   moveColumn: (header, direction) => `Move ${header} ${direction}`,
   columnWidth: header => `${header} width (px)`,
@@ -39,6 +41,8 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
     rows, columns, getRowId, caption, selectable = false, renderBulkActions,
     toolbar, renderExpanded, columnControls = false, pageSizeOptions = [10, 25, 50],
     search: searchEnabled = true, pagination = true,
+    isRowSelectable = () => true, selectOnClick = false, selectAllScope = 'page',
+    isRowExpandable = () => true, expandAll = false,
   } = props;
   const [internalState, setInternalState] = useState(() => createTableState(props.defaultState));
   const state = props.state ?? internalState;
@@ -51,7 +55,8 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
     search: searchEnabled ? search : '', filters, sort,
     page: paginate ? page : 0, pageSize: paginate ? pageSize : Math.max(rows.length, 1),
   }, rowCount), [rows, columns, search, filters, sort, page, pageSize, rowCount, searchEnabled, paginate]);
-  const selected = new Set(state.selectedIds);
+  const selected = new Set(selectable === 'single' ? state.selectedIds.slice(-1) : state.selectedIds);
+  const expandedIds = new Set(state.expandedIds);
   const ids = rows.map(getRowId);
   if (new Set(ids).size !== ids.length || ids.some(id => typeof id !== 'string' || !id)) {
     throw new Error('MUI Tablekit: getRowId must return a unique, nonempty string for every row.');
@@ -60,7 +65,10 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
       columns.some(column => typeof column.id !== 'string' || !column.id)) {
     throw new Error('MUI Tablekit: provide columns with unique, nonempty ids.');
   }
-  const pageIds = view.rows.map(getRowId);
+  const pageIds = (selectAllScope === 'filtered' ? view.allRows : view.rows).filter(isRowSelectable).map(getRowId);
+  const expandableIds = renderExpanded ? view.allRows.filter(isRowExpandable).map(getRowId) : [];
+  const expandableSet = new Set(expandableIds);
+  const allExpanded = expandableIds.length > 0 && expandableIds.every(id => expandedIds.has(id));
   const resolvedColumns = useMemo(() => columns.map(column => column.filterType === 'select' || column.filterType === 'multiselect'
     ? { ...column, filterOptions: inferFilterOptions(column, rows) } : column), [columns, rows]);
   const orderedColumns = getOrderedColumns(resolvedColumns, state.columnOrder);
@@ -69,7 +77,7 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
   const visibleColumns = layoutColumns.filter(column => !state.hiddenColumnIds.includes(column.id));
   if (!visibleColumns.length) throw new Error('MUI Tablekit: at least one column must be visible.');
   const sized = columnControls || Object.keys(state.columnWidths).length > 0;
-  const utilityColumns = Number(selectable) + Number(Boolean(renderExpanded));
+  const utilityColumns = Number(Boolean(selectable)) + Number(Boolean(renderExpanded));
   const tableWidth = visibleColumns.reduce((width, column) => width + columnWidth(state.columnWidths, column.id), utilityColumns * 64);
   const pageSelected = pageIds.filter(id => selected.has(id)).length;
   const update = (patch: Partial<TableState>) => {
@@ -78,6 +86,7 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
     props.onStateChange?.(next);
   };
   const toggle = (rowIds: string[], checked: boolean) => {
+    if (selectable === 'single') { update({ selectedIds: checked ? rowIds.slice(-1) : [] }); return; }
     const next = new Set(selected);
     rowIds.forEach(id => checked ? next.add(id) : next.delete(id));
     update({ selectedIds: [...next] });
@@ -126,13 +135,20 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
           </colgroup>}
           <TableHead>
             <TableRow>
-              {renderExpanded && <TableCell scope="col"><span style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden' }}>{labels.details}</span></TableCell>}
+              {renderExpanded && <TableCell scope="col">
+                {expandAll ? <Button disabled={!expandableIds.length} aria-label={allExpanded ? labels.collapseAll : labels.expandAll}
+                  onClick={() => update({ expandedIds: allExpanded
+                    ? state.expandedIds.filter(id => !expandableSet.has(id))
+                    : [...new Set([...state.expandedIds, ...expandableIds])] })}>{allExpanded ? '−' : '+'}</Button>
+                  : <span style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden' }}>{labels.details}</span>}
+              </TableCell>}
               {selectable && (
                 <TableCell padding="checkbox">
-                  <Checkbox slotProps={{ input: { 'aria-label': labels.selectPage } }}
+                  {selectable !== 'single' && <Checkbox slotProps={{ input: { 'aria-label': selectAllScope === 'page' ? labels.selectPage
+                    : props.mode === 'server' ? labels.selectLoaded : labels.selectFiltered } }}
                     checked={pageIds.length > 0 && pageSelected === pageIds.length}
                     indeterminate={pageSelected > 0 && pageSelected < pageIds.length}
-                    disabled={!pageIds.length} onChange={(_, checked) => toggle(pageIds, checked)} />
+                    disabled={!pageIds.length} onChange={(_, checked) => toggle(pageIds, checked)} />}
                 </TableCell>
               )}
               {visibleColumns.map(column => (
@@ -154,13 +170,24 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
           <TableBody>
             {view.rows.map((row, index) => {
               const id = getRowId(row);
-              const expanded = state.expandedIds.includes(id);
+              const canSelect = Boolean(selectable) && isRowSelectable(row);
+              const expanded = isRowExpandable(row) && expandedIds.has(id);
               const detailsId = `${tableId}-${index}`;
               return (
                 <Fragment key={id}>
-                  <TableRow selected={selectable && selected.has(id)}>
+                  <TableRow selected={Boolean(selectable) && selected.has(id)}
+                    tabIndex={selectOnClick && canSelect ? 0 : undefined}
+                    onClick={event => {
+                      if (selectOnClick && canSelect && !(event.target as Element).closest('button,a,input,select,textarea,[role="button"],[role="checkbox"],[contenteditable]')) toggle([id], !selected.has(id));
+                    }}
+                    onKeyDown={event => {
+                      if (selectOnClick && canSelect && event.target === event.currentTarget && (event.key === ' ' || event.key === 'Enter')) {
+                        event.preventDefault(); toggle([id], !selected.has(id));
+                      }
+                    }}>
                     {renderExpanded && <TableCell padding="none">
                       <Button aria-label={expanded ? labels.collapseRow(id) : labels.expandRow(id)}
+                        disabled={!isRowExpandable(row)}
                         aria-expanded={expanded} aria-controls={expanded ? detailsId : undefined}
                         onClick={() => update({ expandedIds: expanded
                           ? state.expandedIds.filter(value => value !== id) : [...state.expandedIds, id] })}>
@@ -170,6 +197,7 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
                     {selectable && (
                       <TableCell padding="checkbox">
                         <Checkbox slotProps={{ input: { 'aria-label': labels.selectRow(id) } }}
+                          disabled={!canSelect}
                           checked={selected.has(id)} onChange={(_, checked) => toggle([id], checked)} />
                       </TableCell>
                     )}

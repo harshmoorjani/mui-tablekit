@@ -23,6 +23,54 @@ const names = () => within(screen.getByRole('table', { name: 'People' }))
   .getAllByRole('row').slice(1).map(row => within(row).getAllByRole('cell')[0]?.textContent);
 
 describe('DataTable', () => {
+  it('supports single and conditional selection with keyboard row selection without activating nested controls', async () => {
+    const user = userEvent.setup();
+    const action = vi.fn();
+    render(<DataTable {...base} selectable="single" selectOnClick isRowSelectable={row => row.id !== 'c'}
+      columns={[...columns, { id: 'action', header: 'Action', value: () => '', render: () => <button onClick={action}>Inspect</button> }]} />);
+    expect(screen.queryByRole('checkbox', { name: 'Select this page' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('checkbox', { name: 'Select row a' }));
+    const benRow = screen.getByText('Ben').closest('tr')!;
+    benRow.focus();
+    await user.keyboard(' ');
+    expect(screen.getByRole('checkbox', { name: 'Select row a' })).not.toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Select row b' })).toBeChecked();
+    await user.click(within(benRow).getByRole('button', { name: 'Inspect' }));
+    expect(action).toHaveBeenCalledOnce();
+    expect(screen.getByRole('checkbox', { name: 'Select row b' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Select row c' })).toBeDisabled();
+    await user.click(screen.getByText('Cleo'));
+    expect(screen.getByText('1 selected')).toBeVisible();
+    await user.click(screen.getByText('Ben'));
+    expect(screen.queryByText('1 selected')).not.toBeInTheDocument();
+  });
+
+  it('selects all eligible filtered rows across pages and expands only eligible rows', async () => {
+    const user = userEvent.setup();
+    render(<DataTable {...base} selectable selectAllScope="filtered" isRowSelectable={row => row.id !== 'b'}
+      defaultState={{ pageSize: 1 }} expandAll isRowExpandable={row => row.id !== 'b'} renderExpanded={row => <p>Details {row.name}</p>} />);
+    await user.click(screen.getByRole('checkbox', { name: 'Select all filtered rows' }));
+    expect(screen.getByText('2 selected')).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Expand all filtered rows' }));
+    expect(screen.getByText('Details Ada')).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Next page' }));
+    expect(screen.getByRole('button', { name: 'Expand row b' })).toBeDisabled();
+    await user.click(screen.getByRole('button', { name: 'Next page' }));
+    expect(screen.getByText('Details Cleo')).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Collapse all filtered rows' }));
+    expect(screen.queryByText('Details Cleo')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('checkbox', { name: 'Select all filtered rows' }));
+    expect(screen.queryByText('2 selected')).not.toBeInTheDocument();
+  });
+
+  it('limits server select-all to eligible supplied rows', async () => {
+    const user = userEvent.setup();
+    const onStateChange = vi.fn();
+    render(<DataTable {...base} rows={rows.slice(1)} mode="server" rowCount={100} state={createTableState()}
+      onStateChange={onStateChange} selectable selectAllScope="filtered" isRowSelectable={row => row.id !== 'c'} />);
+    await user.click(screen.getByRole('checkbox', { name: 'Select loaded rows' }));
+    expect(onStateChange.mock.lastCall?.[0].selectedIds).toEqual(['b']);
+  });
   it('infers choices from all supplied rows and keeps excluded columns out of layout and output', async () => {
     const user = userEvent.setup();
     const download = vi.spyOn(output, 'downloadCsv').mockImplementation(() => {});

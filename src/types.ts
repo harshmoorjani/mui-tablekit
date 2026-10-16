@@ -46,6 +46,8 @@ export interface TableLabels {
   search: string;
   empty: string;
   selectPage: string;
+  selectFiltered: string;
+  selectLoaded: string;
   selectRow: (id: string) => string;
   selected: (count: number) => string;
   clearSelection: string;
@@ -65,6 +67,8 @@ export interface TableLabels {
   lastPage: string;
   expandRow: (id: string) => string;
   collapseRow: (id: string) => string;
+  expandAll: string;
+  collapseAll: string;
   details: string;
   columns: string;
   showColumn: (header: string) => string;
@@ -86,9 +90,14 @@ interface BaseProps<Row> {
   state?: TableState;
   defaultState?: Partial<TableState>;
   onStateChange?: (state: TableState) => void;
-  selectable?: boolean;
+  selectable?: boolean | 'single';
+  isRowSelectable?: (row: Row) => boolean;
+  selectOnClick?: boolean;
+  selectAllScope?: 'page' | 'filtered';
   renderBulkActions?: (selectedIds: readonly string[]) => ReactNode;
   renderExpanded?: (row: Row) => ReactNode;
+  isRowExpandable?: (row: Row) => boolean;
+  expandAll?: boolean;
   columnControls?: boolean;
   csvFileName?: string;
   printable?: boolean;
