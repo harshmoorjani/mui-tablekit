@@ -16,7 +16,7 @@ const columns: ColumnDefinition<Row>[] = [name, { id: 'volume', header: 'Volume'
   { id: 'actual', header: 'Actual', value: row => row.actual, align: 'right' },
   { id: 'planned', header: 'Planned', value: row => row.planned, align: 'right' },
 ] }];
-const base = { rows, columns, getRowId: (row: Row) => row.id, caption: 'Report' };
+const base = { rows, columns, getRowId: (row: Row) => row.id, caption: 'Report', filterDisplay: 'inline' as const };
 const asyncVeto: DataTableProps<Row>['onRowsDelete'] = async () => false;
 afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); localStorage.clear(); });
 
@@ -71,7 +71,8 @@ it('pins visible columns with cumulative widths and respects visibility and drag
   expect(screen.getByRole('cell', { name: 'Products' })).toHaveStyle({ position: 'sticky', left: '64px' });
   expect(screen.getByRole('cell', { name: '30' })).toHaveStyle({ position: 'sticky', left: '264px' });
   expect(screen.getByRole('cell', { name: '40' })).toHaveStyle({ position: 'sticky', right: '0px' });
-  expect(screen.getByRole('checkbox', { name: 'Show Name', hidden: true })).toBeDisabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Columns' }));
+  expect(screen.getByRole('checkbox', { name: 'Show Name' })).toBeDisabled();
   expect(screen.queryByRole('button', { name: 'Move Actual (drag or use left/right arrows)' })).not.toBeInTheDocument();
 });
 
@@ -196,6 +197,7 @@ it('supports search toggling, lifecycle events, toolbar placement and selection 
 it('keeps a saved view key fixed and allows hiding a column beside a locked visible column', () => {
   const { rerender } = render(<DataTable {...base} columns={[{ ...name, hideable: false },
     { id: 'actual', header: 'Actual', value: row => row.actual }]} storageKey="one" columnControls defaultState={{ hiddenColumnIds: ['name'] }} />);
-  expect(screen.getByRole('checkbox', { name: 'Show Actual', hidden: true })).not.toBeDisabled();
+  fireEvent.click(screen.getByRole('button', { name: 'Columns' }));
+  expect(screen.getByRole('checkbox', { name: 'Show Actual' })).not.toBeDisabled();
   expect(() => rerender(<DataTable {...base} storageKey="two" />)).toThrow(/remount/);
 });

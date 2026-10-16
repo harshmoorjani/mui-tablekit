@@ -1,14 +1,18 @@
-import { Box, Button, Checkbox, FormControlLabel, Stack, TextField } from '@mui/material';
+import { useState } from 'react';
+import { Button, Checkbox, FormControlLabel, Popover, Stack, TextField } from '@mui/material';
 import { columnWidth } from './model.js';
+import { ToolbarButton } from './ToolbarButton.js';
 import type { Column, TableComponents, TableLabels, TableState } from './types.js';
 
-export function ColumnControls<Row>({ columns, state, labels, update, checkbox: Choice = Checkbox }: {
+export function ColumnControls<Row>({ columns, state, labels, update, checkbox: Choice = Checkbox, button }: {
   columns: readonly Column<Row>[];
   state: TableState;
   labels: TableLabels;
   update: (patch: Partial<TableState>) => void;
   checkbox?: TableComponents['Checkbox'];
+  button?: TableComponents['ToolbarButton'];
 }) {
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const visible = columns.filter(column => column.hideable === false || !state.hiddenColumnIds.includes(column.id)).length;
   const move = (index: number, offset: number) => {
     const order = columns.map(column => column.id);
@@ -16,9 +20,12 @@ export function ColumnControls<Row>({ columns, state, labels, update, checkbox: 
     update({ columnOrder: order });
   };
   return (
-    <Box component="details" sx={{ px: 2, pb: 2 }}>
-      <summary>{labels.columns}</summary>
-      <Stack spacing={1} sx={{ pt: 1 }}>
+    <>
+      <ToolbarButton component={button} action="columns" label={labels.columns} expanded={Boolean(anchor)} active={Boolean(anchor)} onClick={event => setAnchor(event.currentTarget)} />
+      <Popover open={Boolean(anchor)} anchorEl={anchor} onClose={() => setAnchor(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }} transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+        slotProps={{ paper: { role: 'dialog', 'aria-label': labels.columns, sx: { maxWidth: 'calc(100vw - 32px)' } } }}>
+      <Stack spacing={1} sx={{ p: 2 }}>
         {columns.map((column, index) => {
           const hidden = column.hideable !== false && state.hiddenColumnIds.includes(column.id);
           return (
@@ -46,6 +53,7 @@ export function ColumnControls<Row>({ columns, state, labels, update, checkbox: 
           );
         })}
       </Stack>
-    </Box>
+      </Popover>
+    </>
   );
 }

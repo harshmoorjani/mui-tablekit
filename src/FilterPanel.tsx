@@ -1,9 +1,11 @@
 import { useId, useState } from 'react';
-import { Button, Dialog, DialogActions, DialogContent, DialogTitle, Stack } from '@mui/material';
+import { Button, Dialog, DialogActions, DialogContent, DialogTitle, Popover, Stack } from '@mui/material';
 import { ColumnFilter } from './ColumnFilter.js';
+import { ToolbarButton } from './ToolbarButton.js';
+import { activeFilter } from './model.js';
 import type { Column, TableComponents, TableLabels, TableState } from './types.js';
 
-export function FilterPanel<Row>({ columns, filters, labels, confirm, onChange, onOpen, onClose, checkbox }: {
+export function FilterPanel<Row>({ columns, filters, labels, confirm, onChange, onOpen, onClose, checkbox, button, inline }: {
   columns: readonly Column<Row>[];
   filters: TableState['filters'];
   labels: TableLabels;
@@ -12,8 +14,11 @@ export function FilterPanel<Row>({ columns, filters, labels, confirm, onChange, 
   onOpen?: () => void;
   onClose?: () => void;
   checkbox?: TableComponents['Checkbox'];
+  button?: TableComponents['ToolbarButton'];
+  inline?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  const open = Boolean(anchor);
   const titleId = useId();
   const [draft, setDraft] = useState(filters);
   if (!columns.length) return null;
@@ -26,11 +31,12 @@ export function FilterPanel<Row>({ columns, filters, labels, confirm, onChange, 
         if (confirm) setDraft(next); else onChange(next);
       }} />)}
   </Stack>;
-  if (!confirm) return controls;
-  const close = () => { setOpen(false); onClose?.(); };
+  if (!confirm && inline) return controls;
+  const close = () => { setAnchor(null); onClose?.(); };
   return <>
-    <Button sx={{ mx: 2, mb: 2 }} onClick={() => { setDraft(structuredClone(filters)); setOpen(true); onOpen?.(); }}>{labels.filters}</Button>
-    <Dialog open={open} onClose={close} aria-labelledby={titleId} fullWidth maxWidth="md">
+    <ToolbarButton component={button} action="filters" label={labels.filters} expanded={open} active={open || Object.values(filters).some(activeFilter)}
+      onClick={event => { setDraft(structuredClone(filters)); setAnchor(event.currentTarget); onOpen?.(); }} />
+    {confirm ? <Dialog open={open} onClose={close} aria-labelledby={titleId} fullWidth maxWidth="md">
       <DialogTitle id={titleId}>{labels.filters}</DialogTitle>
       <DialogContent>{controls}</DialogContent>
       <DialogActions>
@@ -38,6 +44,9 @@ export function FilterPanel<Row>({ columns, filters, labels, confirm, onChange, 
         <Button onClick={close}>{labels.cancelFilters}</Button>
         <Button onClick={() => { onChange(draft, true); close(); }}>{labels.applyFilters}</Button>
       </DialogActions>
-    </Dialog>
+    </Dialog> : <Popover open={open} anchorEl={anchor} onClose={close} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      transformOrigin={{ vertical: 'top', horizontal: 'right' }} slotProps={{ paper: { role: 'dialog', 'aria-label': labels.filters, sx: { width: 600, maxWidth: 'calc(100vw - 32px)' } } }}>
+      {controls}
+    </Popover>}
   </>;
 }

@@ -19,8 +19,10 @@ describe('demo playground', () => {
     const user = userEvent.setup();
     render(<Demo />);
     expect(screen.getByText('1–25 of 1000')).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Filters' }));
     fireEvent.change(screen.getByRole('textbox', { name: 'Filter Name' }), { target: { value: 'no-such-person' } });
     expect(screen.getByText('No matching rows')).toBeVisible();
+    await user.keyboard('{Escape}');
     await user.click(screen.getByText('Table options'));
     await user.click(screen.getByRole('switch', { name: 'Column filters' }));
     expect(screen.queryByRole('textbox', { name: 'Filter Name' })).not.toBeInTheDocument();
@@ -31,8 +33,9 @@ describe('demo playground', () => {
     expect(screen.queryByRole('button', { name: 'Sort by Name' })).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Reset playground' }));
     expect(screen.getByRole('searchbox')).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Filters' }));
     expect(screen.getByRole('textbox', { name: 'Filter Name' })).toHaveValue('');
-    expect(screen.getByRole('button', { name: 'Sort by Name' })).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Sort by Name', hidden: true })).toBeVisible();
   });
 
   it('clears selection and expansion on dataset changes and supports an empty dataset', async () => {

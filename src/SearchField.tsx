@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { TextField } from '@mui/material';
+import { InputAdornment, SvgIcon, TextField } from '@mui/material';
 import type { ReactNode } from 'react';
 import type { SearchControlProps } from './types.js';
 
@@ -21,5 +21,7 @@ export function SearchField({ value, label, delay = 0, onChange, render }: {
   };
   const text = pending ? draft : value;
   return render ? render({ id, label, value: text, onChange: change })
-    : <TextField id={id} label={label} size="small" type="search" value={text} onChange={event => change(event.target.value)} />;
+    : <TextField id={id} placeholder={label} size="small" type="search" value={text} onChange={event => change(event.target.value)}
+      sx={{ width: { xs: 140, sm: 240 }, '& .MuiInputBase-root': { height: 36, fontSize: '0.875rem' } }}
+      slotProps={{ htmlInput: { 'aria-label': label }, input: { startAdornment: <InputAdornment position="start"><SvgIcon fontSize="small" sx={{ fill: 'none', stroke: 'currentColor', strokeWidth: 1.7 }}><circle cx="10" cy="10" r="6" /><path d="m15 15 5 5" /></SvgIcon></InputAdornment> } }} />;
 }

@@ -3,7 +3,7 @@
 import { Fragment, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert, Box, Button, Checkbox, Paper, Stack, Table, TableBody, TableCell,
-  TableContainer, TableFooter, TableHead, TablePagination, TableRow, TextField, Typography,
+  TableContainer, TableFooter, TableHead, TableRow, TextField, Typography,
 } from '@mui/material';
 import { alpha, useTheme } from '@mui/material/styles';
 import type { SxProps, Theme } from '@mui/material/styles';
@@ -14,11 +14,13 @@ import { rowTree, treeView } from './tree.js';
 import { restoreState, savedState } from './storage.js';
 import { ColumnControls } from './ColumnControls.js';
 import { ColumnHeader } from './ColumnHeader.js';
+import { CompactPagination } from './CompactPagination.js';
+import { ToolbarButton } from './ToolbarButton.js';
 import { SearchField } from './SearchField.js';
 import { FilterPanel } from './FilterPanel.js';
 import { FilterChips } from './FilterChips.js';
 import { downloadCsv, printRows } from './output.js';
-import type { Column, DataTableProps, FilterValue, RowContext, TableAction, TableLabels, TableState } from './types.js';
+import type { Column, DataTableProps, FilterValue, RowContext, TableAction, TableLabels, TableState, ToolbarControls } from './types.js';
 
 const defaultLabels: TableLabels = {
   search: 'Search', showSearch: 'Show search', hideSearch: 'Hide search', jumpToPage: 'Jump to page',
@@ -31,7 +33,7 @@ const defaultLabels: TableLabels = {
   resetFilters: 'Reset filters', emptyFilterValue: '(empty)',
   filters: 'Filters', applyFilters: 'Apply filters', cancelFilters: 'Cancel',
   filterChip: (header, value) => `${header}: ${value}`, removeFilter: label => `Remove ${label}`,
-  sort: header => `Sort by ${header}`, rowsPerPage: 'Rows per page:',
+  sort: header => `Sort by ${header}`, rowsPerPage: 'Rows/Page:', page: 'Page:',
   previousPage: 'Previous page', nextPage: 'Next page', firstPage: 'First page', lastPage: 'Last page',
   expandRow: id => `Expand row ${id}`, collapseRow: id => `Collapse row ${id}`,
   expandAll: 'Expand all filtered rows', collapseAll: 'Collapse all filtered rows',
@@ -76,6 +78,7 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
   });
   const state = props.state ?? internalState;
   const [searchOpen, setSearchOpen] = useState(false);
+  const [dragSource, setDragSource] = useState<string>();
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState(false);
   const tableId = useId();
@@ -209,10 +212,31 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
     }}>{labels.deleteRows}</Button>}
     <Button disabled={deleting} onClick={() => update({ selectedIds: [] })}>{labels.clearSelection}</Button>
   </> : null;
-  const barSx = { p: 2, gap: 2, flexWrap: 'wrap', alignItems: 'center' } as const;
+  const barSx = { px: 2, py: 1, gap: 1, flexWrap: 'wrap', alignItems: 'center' } as const;
   const replaced = Boolean(selectionBar && props.selectionToolbar === 'replace');
-  const hasToolbar = searchEnabled || (toolbar != null && toolbar !== false) || Boolean(props.csvFileName || props.printable || selectionBar);
-  const Pagination = components.Pagination ?? TablePagination;
+  const inlineFilters = props.filterDisplay === 'inline' && props.filterMode !== 'confirm';
+  const filterControl = <FilterPanel columns={filterColumns} filters={state.filters} labels={labels} confirm={props.filterMode === 'confirm'}
+    inline={inlineFilters} checkbox={components.Checkbox} button={components.ToolbarButton}
+    onOpen={() => emit('filterOpen')} onClose={() => emit('filterClose')} onChange={(filters, confirmed) => update({ page: 0, filters }, confirmed ? 'filterConfirm' : 'filter')} />;
+  const controls: ToolbarControls = {
+    search: searchEnabled ? <>
+      {props.searchDisplay === 'toggle' && <ToolbarButton component={components.ToolbarButton} action="search" active={searchOpen} expanded={searchOpen} label={searchOpen ? labels.hideSearch : labels.showSearch}
+        onClick={() => { setSearchOpen(value => !value); emit(searchOpen ? 'searchClose' : 'searchOpen'); }} />}
+      {(props.searchDisplay !== 'toggle' || searchOpen) && <SearchField value={state.search} label={labels.search}
+        delay={props.searchDebounceMs} render={props.renderSearch} onChange={search => update({ search, page: 0 })} />}
+    </> : null,
+    filters: !inlineFilters && filterColumns.length ? filterControl : null,
+    columns: columnControls ? <ColumnControls columns={layoutColumns} state={state} labels={labels} update={update} checkbox={components.Checkbox} button={components.ToolbarButton} /> : null,
+    csv: props.csvFileName ? <ToolbarButton component={components.ToolbarButton} action="csv" label={props.mode === 'server' ? labels.downloadCsvPage : labels.downloadCsv}
+      onClick={() => downloadCsv(props.csvFileName!, exportColumns(props.csvOptions?.columns === 'all' ? layoutColumns : visibleColumns),
+        props.csvOptions?.rows === 'all' ? allInputRows : props.csvOptions?.rows === 'page' ? view.rows : view.allRows, props.csvOptions)} /> : null,
+    print: props.printable ? <ToolbarButton component={components.ToolbarButton} action="print" label={props.mode === 'server' ? labels.printPage : labels.print}
+      onClick={() => printRows(caption, exportColumns(visibleColumns), view.allRows)} /> : null,
+    selection: props.selectionToolbar !== 'above' ? selectionBar : null,
+    custom: toolbar,
+  };
+  const hasToolbar = searchEnabled || columnControls || (!inlineFilters && filterColumns.length > 0) || (toolbar != null && toolbar !== false) || Boolean(props.csvFileName || props.printable || controls.selection || props.renderToolbar);
+  const Pagination = components.Pagination ?? CompactPagination;
   const Choice = components.Checkbox ?? Checkbox;
   const ExpandButton = components.ExpandButton ?? Button;
   const stacked = props.responsive === 'stacked' || props.responsive === 'simple';
@@ -220,22 +244,14 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
     {props.header}
     {selectionBar && props.selectionToolbar === 'above' && <Stack direction="row" useFlexGap sx={barSx}>{selectionBar}</Stack>}
     {hasToolbar && <Stack component={components.Toolbar ?? 'div'} direction="row" useFlexGap sx={barSx}>
-      {!replaced && <>
-        {searchEnabled && props.searchDisplay === 'toggle' && <Button onClick={() => { setSearchOpen(value => !value); emit(searchOpen ? 'searchClose' : 'searchOpen'); }}>{searchOpen ? labels.hideSearch : labels.showSearch}</Button>}
-        {searchEnabled && (props.searchDisplay !== 'toggle' || searchOpen) && <SearchField value={state.search} label={labels.search}
-          delay={props.searchDebounceMs} render={props.renderSearch} onChange={search => update({ search, page: 0 })} />}
-        {toolbar}
-        {props.csvFileName && <Button onClick={() => downloadCsv(props.csvFileName!, exportColumns(props.csvOptions?.columns === 'all' ? layoutColumns : visibleColumns),
-          props.csvOptions?.rows === 'all' ? allInputRows : props.csvOptions?.rows === 'page' ? view.rows : view.allRows, props.csvOptions)}>
-          {props.mode === 'server' ? labels.downloadCsvPage : labels.downloadCsv}</Button>}
-        {props.printable && <Button onClick={() => printRows(caption, exportColumns(visibleColumns), view.allRows)}>{props.mode === 'server' ? labels.printPage : labels.print}</Button>}
+      {replaced ? selectionBar : props.renderToolbar ? props.renderToolbar(controls) : <>
+        {controls.search}<Box sx={{ flexGrow: 1 }} />{controls.custom}
+        <Stack direction="row" sx={{ gap: 0.5, alignItems: 'center' }}>{controls.filters}{controls.columns}{controls.csv}{controls.print}</Stack>
+        {controls.selection}
       </>}
-      {props.selectionToolbar !== 'above' && selectionBar}
     </Stack>}
     {deleteError && <Alert severity="error" role="status">{labels.deleteFailed}</Alert>}
-    {columnControls && <ColumnControls columns={layoutColumns} state={state} labels={labels} update={update} checkbox={components.Checkbox} />}
-    <FilterPanel columns={filterColumns} filters={state.filters} labels={labels} confirm={props.filterMode === 'confirm'} checkbox={components.Checkbox}
-      onOpen={() => emit('filterOpen')} onClose={() => emit('filterClose')} onChange={(filters, confirmed) => update({ page: 0, filters }, confirmed ? 'filterConfirm' : 'filter')} />
+    {inlineFilters && filterControl}
     <FilterChips component={components.FilterChip} columns={getOrderedColumns(resolvedColumns, state.columnOrder)} filters={state.filters} labels={labels} onChange={changeFilter} onReset={() => update({ page: 0, filters: {} }, 'filterReset')} />
     <TableContainer ref={container} sx={{ maxHeight: props.maxHeight }} tabIndex={props.maxHeight || pinned ? 0 : undefined} role={props.maxHeight || pinned ? 'region' : undefined}
       aria-label={props.maxHeight || pinned ? caption : undefined}>
@@ -272,7 +288,7 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
               </TableCell>}
               {cells.map(cell => cell.column ? <ColumnHeader key={cell.id} id={cell.id} rowSpan={cell.rowSpan} column={cell.column} columns={layoutColumns}
                 sx={stickyStyle(cell.column, true, top)} groupToggle={columnModel.groups.get(cell.column.id)?.value ? () => toggleGroup(cell.column!.id) : undefined}
-                state={state} labels={labels} update={update} tableId={tableId} reorder={Boolean(props.columnReordering)} resize={Boolean(props.columnResizing)} />
+                state={state} labels={labels} update={update} tableId={tableId} reorder={Boolean(props.columnReordering)} resize={Boolean(props.columnResizing)} dragSource={dragSource} onDragSourceChange={setDragSource} />
                 : <TableCell key={cell.id} id={cell.id} scope="colgroup" role="columnheader" colSpan={cell.colSpan} rowSpan={cell.rowSpan}
                   sx={styles(stickyStyle(cell.leaves[0]?.sticky === 'right' ? cell.leaves.at(-1) : cell.leaves[0], true, top), cell.group?.headerSx)}>
                   {cell.group?.value ? <Button data-group-toggle={cell.group.id} aria-label={labels.collapseColumns(cell.header)} aria-expanded onClick={() => toggleGroup(cell.group!.id)}>− {cell.header}</Button> : cell.header}
@@ -335,7 +351,7 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
       </Table>
     </TableContainer>
     {pagination && <Stack direction="row" useFlexGap sx={{ alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-      {props.jumpToPage && <TextField type="number" size="small" label={labels.jumpToPage} key={view.page} defaultValue={view.page + 1} sx={{ m: 1, width: 140 }}
+      {props.jumpToPage && components.Pagination && <TextField type="number" size="small" label={labels.jumpToPage} key={view.page} defaultValue={view.page + 1} sx={{ m: 1, width: 140 }}
         slotProps={{ htmlInput: { min: 1, max: Math.max(1, Math.ceil(view.count / state.pageSize)), step: 1 } }}
         onKeyDown={event => { if (event.key === 'Enter') (event.target as HTMLInputElement).blur(); }}
         onBlur={event => {
@@ -343,7 +359,7 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
           if (event.target.value && Number.isInteger(number) && number >= 1 && number <= Math.max(1, Math.ceil(view.count / state.pageSize))) update({ page: number - 1 });
           else event.target.value = String(view.page + 1);
         }} />}
-      <Pagination component="div" count={view.count} page={view.page} rowsPerPage={state.pageSize}
+      <Pagination {...(!components.Pagination ? { pageLabel: labels.page, jumpToPage: props.jumpToPage, jumpLabel: labels.jumpToPage } : {})} component="div" count={view.count} page={view.page} rowsPerPage={state.pageSize}
         rowsPerPageOptions={[...new Set([...pageSizeOptions, state.pageSize])].sort((a, b) => a - b)} labelRowsPerPage={labels.rowsPerPage} labelDisplayedRows={labels.displayedRows}
         getItemAriaLabel={type => ({ first: labels.firstPage, last: labels.lastPage, previous: labels.previousPage, next: labels.nextPage })[type]}
         onPageChange={(_, page) => update({ page })} onRowsPerPageChange={event => update({ pageSize: Number(event.target.value), page: 0 })} />

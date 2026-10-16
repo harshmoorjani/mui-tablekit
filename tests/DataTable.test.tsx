@@ -18,7 +18,7 @@ const columns: Column<Person>[] = [
   { id: 'team', header: 'Team', value: row => row.team, filterable: true },
   { id: 'age', header: 'Age', value: row => row.age, align: 'right' },
 ];
-const base = { rows, columns, getRowId: (row: Person) => row.id, caption: 'People' };
+const base = { rows, columns, getRowId: (row: Person) => row.id, caption: 'People', filterDisplay: 'inline' as const };
 const names = () => within(screen.getByRole('table', { name: 'People' }))
   .getAllByRole('row').slice(1).map(row => within(row).getAllByRole('cell')[0]?.textContent);
 
@@ -279,8 +279,7 @@ describe('DataTable', () => {
     const change = vi.fn();
     render(<DataTable {...base} defaultState={{ page: 1, pageSize: 1 }} pageSizeOptions={[1, 2]}
       onStateChange={change} />);
-    fireEvent.mouseDown(screen.getByRole('combobox'));
-    fireEvent.click(screen.getByRole('option', { name: '2' }));
+    fireEvent.change(screen.getByRole('combobox', { name: 'Rows/Page:' }), { target: { value: '2' } });
     expect(change).toHaveBeenLastCalledWith(expect.objectContaining({ page: 0, pageSize: 2 }));
     expect(screen.getByText('Ada')).toBeVisible();
   });
@@ -315,15 +314,17 @@ describe('DataTable', () => {
     const change = vi.fn();
     render(<DataTable {...base} columnControls selectable onStateChange={change} />);
     await user.click(screen.getByRole('checkbox', { name: 'Select row a' }));
-    await user.click(screen.getByText('Columns', { exact: true }));
+    await user.click(screen.getByRole('button', { name: 'Columns' }));
     await user.click(screen.getByRole('checkbox', { name: 'Show Team' }));
+    await user.keyboard('{Escape}');
     expect(screen.queryByRole('columnheader', { name: 'Team' })).not.toBeInTheDocument();
     await user.type(screen.getByRole('textbox', { name: 'Filter Team' }), 'Design');
     expect(screen.getByText('Ada')).toBeVisible();
     expect(screen.queryByText('Ben')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Columns' }));
     await user.click(screen.getByRole('button', { name: 'Move Age previous' }));
     await user.click(screen.getByRole('button', { name: 'Move Age previous' }));
-    const headers = screen.getAllByRole('columnheader');
+    const headers = screen.getAllByRole('columnheader', { hidden: true });
     expect(headers[1]).toHaveTextContent('Age');
     const width = screen.getByRole('spinbutton', { name: 'Age width (px)' });
     await user.clear(width);
@@ -402,7 +403,7 @@ it('waits for controlled width changes to be applied by the parent', async () =>
   const user = userEvent.setup();
   const change = vi.fn();
   const { rerender } = render(<DataTable {...base} columnControls state={createTableState()} onStateChange={change} />);
-  await user.click(screen.getByText('Columns', { exact: true }));
+  await user.click(screen.getByRole('button', { name: 'Columns' }));
   const width = screen.getByRole('spinbutton', { name: 'Name width (px)' });
   await user.clear(width);
   await user.type(width, '280');

@@ -4,6 +4,7 @@ import type { TableCellProps } from '@mui/material/TableCell';
 import type { CheckboxProps } from '@mui/material/Checkbox';
 import type { ButtonProps } from '@mui/material/Button';
 import type { ChipProps } from '@mui/material/Chip';
+import type { MouseEventHandler } from 'react';
 import type { SxProps, Theme } from '@mui/material/styles';
 
 export type CellScalar = string | number | boolean | Date | null | undefined;
@@ -73,6 +74,25 @@ export interface RowContext {
   expanded: boolean;
 }
 
+export interface ToolbarButtonProps {
+  action: 'search' | 'filters' | 'columns' | 'csv' | 'print';
+  label: string;
+  active?: boolean;
+  expanded?: boolean;
+  onClick: MouseEventHandler<HTMLElement>;
+  children: ReactNode;
+}
+
+export interface ToolbarControls {
+  search: ReactNode;
+  filters: ReactNode;
+  columns: ReactNode;
+  csv: ReactNode;
+  print: ReactNode;
+  selection: ReactNode;
+  custom: ReactNode;
+}
+
 export interface TableComponents {
   Table?: ElementType;
   Head?: ElementType;
@@ -84,6 +104,7 @@ export interface TableComponents {
   ExpandButton?: ComponentType<ButtonProps>;
   FilterChip?: ComponentType<ChipProps>;
   Toolbar?: ElementType;
+  ToolbarButton?: ComponentType<ToolbarButtonProps>;
 }
 
 export interface TableState {
@@ -134,6 +155,7 @@ export interface TableLabels {
   removeFilter: (label: string) => string;
   sort: (header: string) => string;
   rowsPerPage: string;
+  page: string;
   previousPage: string;
   nextPage: string;
   firstPage: string;
@@ -193,6 +215,7 @@ interface BaseProps<Row> {
   csvOptions?: CsvOptions;
   printable?: boolean;
   toolbar?: ReactNode;
+  renderToolbar?: (controls: ToolbarControls) => ReactNode;
   header?: ReactNode;
   footer?: ReactNode;
   emptyContent?: ReactNode;
@@ -216,6 +239,7 @@ interface BaseProps<Row> {
   jumpToPage?: boolean;
   storageKey?: string;
   filterMode?: 'immediate' | 'confirm';
+  filterDisplay?: 'popover' | 'inline';
 }
 
 export type DataTableProps<Row> = BaseProps<Row> & (
