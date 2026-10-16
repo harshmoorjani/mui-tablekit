@@ -81,6 +81,8 @@ export interface TableLabels {
   collapseRow: (id: string) => string;
   expandAll: string;
   collapseAll: string;
+  expandLoaded: string;
+  collapseLoaded: string;
   details: string;
   columns: string;
   showColumn: (header: string) => string;

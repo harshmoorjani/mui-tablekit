@@ -42,8 +42,8 @@
     "prepublishOnly": "npm run check"
   },
   "peerDependencies": {
-    "@emotion/react": "^11.0.0",
-    "@emotion/styled": "^11.0.0",
+    "@emotion/react": "^11.5.0",
+    "@emotion/styled": "^11.3.0",
     "@mui/material": "^9.5.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"

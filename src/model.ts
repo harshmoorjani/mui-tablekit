@@ -27,13 +27,16 @@ export function cellText(value: CellValue): string {
   return value instanceof Date ? value.toISOString() : String(value ?? '');
 }
 
-export function inferFilterOptions<Row>(column: Column<Row>, rows: readonly Row[]) {
+export function inferFilterOptions<Row>(column: Column<Row>, rows: readonly Row[], filter?: FilterValue) {
   if (column.filterOptions) return column.filterOptions;
   const values = new Set<string>();
   rows.forEach(row => {
     const value = column.value(row);
     (Array.isArray(value) ? value : [value]).forEach(entry => { if (entry != null) values.add(cellText(entry)); });
   });
+  // Keep active choices usable when a refresh no longer contains their rows.
+  if (typeof filter === 'string' && filter) values.add(filter);
+  if (Array.isArray(filter)) filter.forEach(value => values.add(value));
   return [...values].sort(collator.compare).map(value => ({ value, label: value }));
 }
 

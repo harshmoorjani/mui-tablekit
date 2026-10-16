@@ -148,9 +148,12 @@ describe('DataTable', () => {
     const user = userEvent.setup();
     const onStateChange = vi.fn();
     render(<DataTable {...base} rows={rows.slice(1)} mode="server" rowCount={100} state={createTableState()}
-      onStateChange={onStateChange} selectable selectAllScope="filtered" isRowSelectable={row => row.id !== 'c'} />);
+      onStateChange={onStateChange} selectable selectAllScope="filtered" isRowSelectable={row => row.id !== 'c'}
+      renderExpanded={row => row.name} expandAll isRowExpandable={row => row.id !== 'b'} />);
     await user.click(screen.getByRole('checkbox', { name: 'Select loaded rows' }));
     expect(onStateChange.mock.lastCall?.[0].selectedIds).toEqual(['b']);
+    await user.click(screen.getByRole('button', { name: 'Expand loaded rows' }));
+    expect(onStateChange.mock.lastCall?.[0].expandedIds).toEqual(['c']);
   });
   it('infers choices from all supplied rows and keeps excluded columns out of layout and output', async () => {
     const user = userEvent.setup();

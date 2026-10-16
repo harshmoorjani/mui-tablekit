@@ -61,7 +61,7 @@ export function Demo() {
   const [allSkills, setAllSkills] = useState(false);
   const [server, setServer] = useState(false);
   const rows = useMemo(() => createPeople(count), [count]);
-  const theme = useMemo(() => createTheme({ palette: { mode: dark ? 'dark' : 'light' } }), [dark]);
+  const theme = useMemo(() => createTheme({ palette: { mode: dark ? 'dark' : 'light', contrastThreshold: 4.5 } }), [dark]);
   const activeColumns = useMemo(() => columns.map(column => ({
     ...column,
     filterable: features.filters && column.filterable !== false,

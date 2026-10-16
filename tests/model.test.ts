@@ -23,6 +23,7 @@ it('filters array members with any/all semantics and infers stable unique choice
   expect(getView(data, [column], { ...state, search: 'blue', filters: {} }).count).toBe(2);
   expect(inferFilterOptions(column, data)).toEqual([{ value: 'blue', label: 'blue' }, { value: 'red', label: 'red' }]);
   expect(inferFilterOptions({ ...column, filterOptions: [] }, data)).toEqual([]);
+  expect(inferFilterOptions(column, [], ['missing'])).toEqual([{ value: 'missing', label: 'missing' }]);
   expect(cellText(['x', 2, false, null])).toBe('x, 2, false, ');
 });
 

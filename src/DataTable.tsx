@@ -28,6 +28,7 @@ const defaultLabels: TableLabels = {
   firstPage: 'First page', lastPage: 'Last page',
   expandRow: id => `Expand row ${id}`, collapseRow: id => `Collapse row ${id}`,
   expandAll: 'Expand all filtered rows', collapseAll: 'Collapse all filtered rows',
+  expandLoaded: 'Expand loaded rows', collapseLoaded: 'Collapse loaded rows',
   details: 'Details', columns: 'Columns', showColumn: header => `Show ${header}`,
   moveColumn: (header, direction) => `Move ${header} ${direction}`,
   columnWidth: header => `${header} width (px)`,
@@ -70,11 +71,12 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
     throw new Error('MUI Tablekit: provide columns with unique, nonempty ids.');
   }
   const pageIds = (selectAllScope === 'filtered' ? view.allRows : view.rows).filter(isRowSelectable).map(getRowId);
-  const expandableIds = renderExpanded ? view.allRows.filter(isRowExpandable).map(getRowId) : [];
+  const expandableIds = renderExpanded && expandAll ? view.allRows.filter(isRowExpandable).map(getRowId) : [];
   const expandableSet = new Set(expandableIds);
   const allExpanded = expandableIds.length > 0 && expandableIds.every(id => expandedIds.has(id));
   const resolvedColumns = useMemo(() => columns.map(column => column.filterType === 'select' || column.filterType === 'multiselect'
-    ? { ...column, filterOptions: inferFilterOptions(column, rows) } : column), [columns, rows]);
+    ? { ...column, filterOptions: inferFilterOptions(column, rows, Object.hasOwn(filters, column.id) ? filters[column.id] : undefined) }
+    : column), [columns, rows, filters]);
   const orderedColumns = getOrderedColumns(resolvedColumns, state.columnOrder);
   const filterColumns = orderedColumns.filter(column => column.filterable ?? Boolean(column.filterType || column.renderFilter));
   const layoutColumns = orderedColumns.filter(column => !column.excluded);
@@ -149,15 +151,16 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
           </colgroup>}
           <TableHead role="rowgroup">
             <TableRow role="row">
-              {renderExpanded && <TableCell scope="col">
-                {expandAll ? <Button disabled={!expandableIds.length} aria-label={allExpanded ? labels.collapseAll : labels.expandAll}
+              {renderExpanded && <TableCell scope="col" role="columnheader">
+                {expandAll ? <Button disabled={!expandableIds.length} aria-label={props.mode === 'server'
+                  ? allExpanded ? labels.collapseLoaded : labels.expandLoaded : allExpanded ? labels.collapseAll : labels.expandAll}
                   onClick={() => update({ expandedIds: allExpanded
                     ? state.expandedIds.filter(id => !expandableSet.has(id))
                     : [...new Set([...state.expandedIds, ...expandableIds])] })}>{allExpanded ? '−' : '+'}</Button>
                   : <span style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden' }}>{labels.details}</span>}
               </TableCell>}
               {selectable && (
-                <TableCell padding="checkbox">
+                <TableCell padding="checkbox" role="columnheader">
                   {selectable !== 'single' && <Checkbox slotProps={{ input: { 'aria-label': selectAllScope === 'page' ? labels.selectPage
                     : props.mode === 'server' ? labels.selectLoaded : labels.selectFiltered } }}
                     checked={pageIds.length > 0 && pageSelected === pageIds.length}
@@ -182,14 +185,14 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
                     role="row" sx={props.rowSx?.(row)}
                     tabIndex={selectOnClick && canSelect ? 0 : undefined}
                     onClick={event => {
-                      if (selectOnClick && canSelect && !(event.target as Element).closest('button,a,input,select,textarea,[role="button"],[role="checkbox"],[contenteditable]')) toggle([id], !selected.has(id));
+                      if (selectOnClick && canSelect && !(event.target as Element).closest('button,a,input,select,textarea,label,summary,[role="button"],[role="checkbox"],[role="switch"],[role="link"],[role="combobox"],[role="textbox"],[contenteditable]')) toggle([id], !selected.has(id));
                     }}
                     onKeyDown={event => {
                       if (selectOnClick && canSelect && event.target === event.currentTarget && (event.key === ' ' || event.key === 'Enter')) {
                         event.preventDefault(); toggle([id], !selected.has(id));
                       }
                     }}>
-                    {renderExpanded && <TableCell padding="none">
+                    {renderExpanded && <TableCell padding="none" role="cell">
                       <Button aria-label={expanded ? labels.collapseRow(id) : labels.expandRow(id)}
                         disabled={!isRowExpandable(row)}
                         aria-expanded={expanded} aria-controls={expanded ? detailsId : undefined}
@@ -199,7 +202,7 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
                       </Button>
                     </TableCell>}
                     {selectable && (
-                      <TableCell padding="checkbox">
+                      <TableCell padding="checkbox" role="cell">
                         <Checkbox slotProps={{ input: { 'aria-label': labels.selectRow(id) } }}
                           disabled={!canSelect}
                           checked={selected.has(id)} onChange={(_, checked) => toggle([id], checked)} />
@@ -213,8 +216,8 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
                       </TableCell>
                     ))}
                   </TableRow>
-                  {renderExpanded && expanded && <TableRow>
-                    <TableCell id={detailsId} colSpan={visibleColumns.length + utilityColumns}>
+                  {renderExpanded && expanded && <TableRow role="row">
+                    <TableCell id={detailsId} role="cell" colSpan={visibleColumns.length + utilityColumns}>
                       {renderExpanded(row)}
                     </TableCell>
                   </TableRow>}
@@ -222,7 +225,7 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
               );
             })}
             {!view.rows.length && (
-              <TableRow><TableCell colSpan={visibleColumns.length + utilityColumns}>
+              <TableRow role="row"><TableCell role="cell" colSpan={visibleColumns.length + utilityColumns}>
                 <Box role="status" sx={{ py: 3, textAlign: 'center' }}>{props.emptyContent ?? labels.empty}</Box>
               </TableCell></TableRow>
             )}
