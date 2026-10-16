@@ -41,27 +41,27 @@ export function printRows<Row>(caption: string, columns: readonly Column<Row>[],
   const timeout = setTimeout(cleanup, 60_000);
   target.addEventListener('afterprint', cleanup, { once: true });
   try {
-  const doc = target.document;
-  doc.title = caption;
-  const style = doc.createElement('style');
-  style.textContent = 'body{font:14px sans-serif}table{border-collapse:collapse;width:100%}caption{font-weight:bold;text-align:start;padding:12px 0}th,td{border:1px solid #bbb;padding:8px;text-align:start;overflow-wrap:anywhere}';
-  doc.head.append(style);
-  const table = doc.createElement('table');
-  table.createCaption().textContent = caption;
-  const header = table.createTHead().insertRow();
-  columns.forEach(column => {
-    const cell = doc.createElement('th');
-    cell.scope = 'col';
-    cell.textContent = column.header;
-    header.append(cell);
-  });
-  const body = table.createTBody();
-  rows.forEach(row => {
-    const tr = body.insertRow();
-    columns.forEach(column => { tr.insertCell().textContent = cellText(column.value(row)); });
-  });
-  doc.body.append(table);
-  target.focus();
-  target.print();
+    const doc = target.document;
+    doc.title = caption;
+    const style = doc.createElement('style');
+    style.textContent = 'body{font:14px sans-serif}table{border-collapse:collapse;width:100%}caption{font-weight:bold;text-align:start;padding:12px 0}th,td{border:1px solid #bbb;padding:8px;text-align:start;overflow-wrap:anywhere}';
+    doc.head.append(style);
+    const table = doc.createElement('table');
+    table.createCaption().textContent = caption;
+    const header = table.createTHead().insertRow();
+    columns.forEach(column => {
+      const cell = doc.createElement('th');
+      cell.scope = 'col';
+      cell.textContent = column.header;
+      header.append(cell);
+    });
+    const body = table.createTBody();
+    rows.forEach(row => {
+      const tr = body.insertRow();
+      columns.forEach(column => { tr.insertCell().textContent = cellText(column.value(row)); });
+    });
+    doc.body.append(table);
+    target.focus();
+    target.print();
   } catch (error) { cleanup(); throw error; }
 }

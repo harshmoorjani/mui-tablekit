@@ -141,6 +141,7 @@ describe('DataTable', () => {
   it('rejects ambiguous row and column identity', () => {
     expect(() => render(<DataTable {...base} rows={[rows[0]!, rows[0]!]} />)).toThrow(/getRowId/);
     expect(() => render(<DataTable {...base} columns={[columns[0]!, columns[0]!]} />)).toThrow(/columns/);
+    expect(() => render(<DataTable {...base} defaultState={{ hiddenColumnIds: ['name', 'team', 'age'] }} />)).toThrow(/visible/);
   });
 
   it('keeps expansion attached to row IDs through sorting and paging', async () => {

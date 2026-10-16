@@ -137,32 +137,32 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
               const detailsId = `${tableId}-${encodeURIComponent(id)}`;
               return (
                 <Fragment key={id}>
-                <TableRow selected={selectable && selected.has(id)}>
-                  {renderExpanded && <TableCell padding="none">
-                    <Button aria-label={expanded ? labels.collapseRow(id) : labels.expandRow(id)}
-                      aria-expanded={expanded} aria-controls={expanded ? detailsId : undefined}
-                      onClick={() => update({ expandedIds: expanded
-                        ? state.expandedIds.filter(value => value !== id) : [...state.expandedIds, id] })}>
-                      {expanded ? '−' : '+'}
-                    </Button>
-                  </TableCell>}
-                  {selectable && (
-                    <TableCell padding="checkbox">
-                      <Checkbox slotProps={{ input: { 'aria-label': labels.selectRow(id) } }}
-                        checked={selected.has(id)} onChange={(_, checked) => toggle([id], checked)} />
+                  <TableRow selected={selectable && selected.has(id)}>
+                    {renderExpanded && <TableCell padding="none">
+                      <Button aria-label={expanded ? labels.collapseRow(id) : labels.expandRow(id)}
+                        aria-expanded={expanded} aria-controls={expanded ? detailsId : undefined}
+                        onClick={() => update({ expandedIds: expanded
+                          ? state.expandedIds.filter(value => value !== id) : [...state.expandedIds, id] })}>
+                        {expanded ? '−' : '+'}
+                      </Button>
+                    </TableCell>}
+                    {selectable && (
+                      <TableCell padding="checkbox">
+                        <Checkbox slotProps={{ input: { 'aria-label': labels.selectRow(id) } }}
+                          checked={selected.has(id)} onChange={(_, checked) => toggle([id], checked)} />
+                      </TableCell>
+                    )}
+                    {visibleColumns.map(column => (
+                      <TableCell key={column.id} align={column.align}>
+                        {column.render ? column.render(column.value(row), row) : cellText(column.value(row))}
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                  {renderExpanded && expanded && <TableRow>
+                    <TableCell id={detailsId} colSpan={visibleColumns.length + utilityColumns}>
+                      {renderExpanded(row)}
                     </TableCell>
-                  )}
-                  {visibleColumns.map(column => (
-                    <TableCell key={column.id} align={column.align}>
-                      {column.render ? column.render(column.value(row), row) : cellText(column.value(row))}
-                    </TableCell>
-                  ))}
-                </TableRow>
-                {renderExpanded && expanded && <TableRow>
-                  <TableCell id={detailsId} colSpan={visibleColumns.length + utilityColumns}>
-                    {renderExpanded(row)}
-                  </TableCell>
-                </TableRow>}
+                  </TableRow>}
                 </Fragment>
               );
             })}

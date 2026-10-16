@@ -31,7 +31,7 @@ it('downloads a Blob and releases the temporary URL and link', () => {
   expect(revoke).toHaveBeenCalledWith('blob:test');
 });
 
-it('prints a separate text-only document and cleans up after the dialog', () => {
+it('prints a separate text-only document and cleans up after the dialog or timeout', () => {
   const append = document.body.append.bind(document.body);
   const print = vi.fn();
   vi.spyOn(document.body, 'append').mockImplementation((...nodes) => {
@@ -47,6 +47,11 @@ it('prints a separate text-only document and cleans up after the dialog', () => 
   expect(frame.contentDocument!.querySelector('img')).toBeNull();
   expect(print).toHaveBeenCalledOnce();
   frame.contentWindow!.dispatchEvent(new Event('afterprint'));
+  expect(document.querySelector('iframe')).toBeNull();
+  vi.useFakeTimers();
+  printRows('People', columns, []);
+  expect(document.querySelector('iframe')).not.toBeNull();
+  vi.advanceTimersByTime(60_000);
   expect(document.querySelector('iframe')).toBeNull();
 });
 
