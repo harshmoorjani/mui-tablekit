@@ -8,6 +8,7 @@ import {
 } from '@mui/material';
 import { cellText, columnWidth, createTableState, getOrderedColumns, getView } from './model.js';
 import { ColumnControls } from './ColumnControls.js';
+import { downloadCsv, printRows } from './output.js';
 import type { DataTableProps, TableLabels, TableState } from './types.js';
 
 const defaultLabels: TableLabels = {
@@ -20,6 +21,7 @@ const defaultLabels: TableLabels = {
   details: 'Details', columns: 'Columns', showColumn: header => `Show ${header}`,
   moveColumn: (header, direction) => `Move ${header} ${direction}`,
   columnWidth: header => `${header} width (px)`,
+  downloadCsv: 'Download CSV', downloadCsvPage: 'Download page CSV', print: 'Print', printPage: 'Print page',
   displayedRows: ({ from, to, count }) => `${from}–${to} of ${count}`,
 };
 
@@ -60,6 +62,8 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
     rowIds.forEach(id => checked ? next.add(id) : next.delete(id));
     update({ selectedIds: [...next] });
   };
+  const outputRows = () => getView(rows, columns, { ...state, page: 0, pageSize: Math.max(rows.length, 1) },
+    props.mode === 'server' ? props.rowCount : undefined).rows;
 
   return (
     <Paper variant="outlined">
@@ -67,6 +71,12 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
         <TextField label={labels.search} size="small" type="search" value={state.search}
           onChange={event => update({ search: event.target.value, page: 0 })} />
         {toolbar}
+        {props.csvFileName && <Button onClick={() => downloadCsv(props.csvFileName!, visibleColumns, outputRows())}>
+          {props.mode === 'server' ? labels.downloadCsvPage : labels.downloadCsv}
+        </Button>}
+        {props.printable && <Button onClick={() => printRows(caption, visibleColumns, outputRows())}>
+          {props.mode === 'server' ? labels.printPage : labels.print}
+        </Button>}
         {selectable && selected.size > 0 && (
           <>
             <Typography role="status">{labels.selected(selected.size)}</Typography>

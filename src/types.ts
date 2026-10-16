@@ -47,6 +47,10 @@ export interface TableLabels {
   showColumn: (header: string) => string;
   moveColumn: (header: string, direction: 'previous' | 'next') => string;
   columnWidth: (header: string) => string;
+  downloadCsv: string;
+  downloadCsvPage: string;
+  print: string;
+  printPage: string;
   displayedRows: (range: { from: number; to: number; count: number }) => string;
 }
 
@@ -63,6 +67,8 @@ interface BaseProps<Row> {
   renderBulkActions?: (selectedIds: readonly string[]) => ReactNode;
   renderExpanded?: (row: Row) => ReactNode;
   columnControls?: boolean;
+  csvFileName?: string;
+  printable?: boolean;
   toolbar?: ReactNode;
   labels?: Partial<TableLabels>;
   pageSizeOptions?: number[];

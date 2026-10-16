@@ -4,6 +4,7 @@ import { userEvent } from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { createTableState, DataTable } from '../src/index.js';
 import type { Column, DataTableProps, TableState } from '../src/index.js';
+import * as output from '../src/output.js';
 
 const rows = [
   { id: 'a', name: 'Ada', team: 'Design', age: 40 },
@@ -181,6 +182,33 @@ describe('DataTable', () => {
     expect(change).toHaveBeenLastCalledWith(expect.objectContaining({ selectedIds: ['a'], columnWidths: { age: 280 } }));
     await user.click(screen.getByRole('checkbox', { name: 'Show Name' }));
     expect(screen.getByRole('checkbox', { name: 'Show Age' })).toBeDisabled();
+  });
+
+  it('exports and prints all filtered client rows in visible column order', async () => {
+    const user = userEvent.setup();
+    const csv = vi.spyOn(output, 'downloadCsv').mockImplementation(() => {});
+    const print = vi.spyOn(output, 'printRows').mockImplementation(() => {});
+    try {
+      render(<DataTable {...base} csvFileName="people.csv" printable defaultState={{ pageSize: 1,
+        filters: { team: 'Engineering' }, sort: { columnId: 'age', direction: 'desc' },
+        hiddenColumnIds: ['team'], columnOrder: ['age', 'name'] }} />);
+      await user.click(screen.getByRole('button', { name: 'Download CSV' }));
+      expect(csv).toHaveBeenCalledWith('people.csv', [columns[2], columns[0]], [rows[2], rows[1]]);
+      await user.click(screen.getByRole('button', { name: /^Print$/ }));
+      expect(print).toHaveBeenCalledWith('People', [columns[2], columns[0]], [rows[2], rows[1]]);
+    } finally { csv.mockRestore(); print.mockRestore(); }
+  });
+
+  it('labels server exports as page-only and never exports unseen rows', async () => {
+    const user = userEvent.setup();
+    const csv = vi.spyOn(output, 'downloadCsv').mockImplementation(() => {});
+    try {
+      render(<DataTable {...base} rows={[rows[1]!]} csvFileName="page.csv" printable mode="server" rowCount={100}
+        state={createTableState({ page: 2 })} onStateChange={() => {}} />);
+      await user.click(screen.getByRole('button', { name: 'Download page CSV' }));
+      expect(csv).toHaveBeenCalledWith('page.csv', columns, [rows[1]]);
+      expect(screen.getByRole('button', { name: 'Print page' })).toBeVisible();
+    } finally { csv.mockRestore(); }
   });
 });
 
