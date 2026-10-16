@@ -71,3 +71,27 @@ it('removes the print frame when a cell renderer fails before printing', () => {
   expect(() => printRows('People', [{ ...columns[0]!, value: () => { throw new Error('Bad value'); } }], [{ value: 'Ada' }])).toThrow('Bad value');
   expect(document.querySelector('iframe')).toBeNull();
 });
+
+it('restores keyboard focus after removing the focused print frame', () => {
+  const trigger = document.createElement('button');
+  const other = document.createElement('button');
+  document.body.append(trigger);
+  document.body.append(other);
+  trigger.focus();
+  const append = document.body.append.bind(document.body);
+  vi.spyOn(document.body, 'append').mockImplementation((...nodes) => {
+    append(...nodes);
+    const frame = nodes[0] as HTMLIFrameElement;
+    vi.spyOn(frame.contentWindow!, 'focus').mockImplementation(() => frame.focus());
+    vi.spyOn(frame.contentWindow!, 'print').mockImplementation(() => {});
+  });
+  try {
+    printRows('People', columns, []);
+    document.querySelector('iframe')!.contentWindow!.dispatchEvent(new Event('afterprint'));
+    expect(trigger).toHaveFocus();
+    printRows('People', columns, []);
+    other.focus();
+    document.querySelector('iframe')!.contentWindow!.dispatchEvent(new Event('afterprint'));
+    expect(other).toHaveFocus();
+  } finally { trigger.remove(); other.remove(); }
+});

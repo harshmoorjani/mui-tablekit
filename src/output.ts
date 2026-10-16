@@ -28,6 +28,7 @@ export function downloadCsv<Row>(filename: string, columns: readonly Column<Row>
 }
 
 export function printRows<Row>(caption: string, columns: readonly Column<Row>[], rows: readonly Row[]) {
+  const previousFocus = document.activeElement;
   const frame = document.createElement('iframe');
   frame.title = caption;
   frame.tabIndex = -1;
@@ -36,7 +37,12 @@ export function printRows<Row>(caption: string, columns: readonly Column<Row>[],
   document.body.append(frame);
   const target = frame.contentWindow;
   if (!target) { frame.remove(); throw new Error('MUI Tablekit: unable to open the print document.'); }
-  const cleanup = () => { clearTimeout(timeout); frame.remove(); };
+  const cleanup = () => {
+    clearTimeout(timeout);
+    const restoreFocus = document.activeElement === frame;
+    frame.remove();
+    if (restoreFocus && previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus();
+  };
   // Some browsers omit afterprint when the dialog is dismissed or unavailable.
   const timeout = setTimeout(cleanup, 60_000);
   target.addEventListener('afterprint', cleanup, { once: true });
