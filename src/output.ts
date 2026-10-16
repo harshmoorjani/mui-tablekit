@@ -21,7 +21,10 @@ export function toCsv<Row>(columns: readonly Column<Row>[], rows: readonly Row[]
 }
 
 export function downloadCsv<Row>(filename: string, columns: readonly Column<Row>[], rows: readonly Row[], options?: CsvOptions) {
-  const url = URL.createObjectURL(new Blob([toCsv(columns, rows, options)], { type: 'text/csv;charset=utf-8' }));
+  const csv = toCsv(columns, rows, options);
+  const content = options?.transform ? options.transform(csv) : csv;
+  if (content === false) return;
+  const url = URL.createObjectURL(new Blob([content], { type: 'text/csv;charset=utf-8' }));
   const link = document.createElement('a');
   link.href = url;
   link.download = filename;
@@ -35,6 +38,7 @@ export function downloadCsv<Row>(filename: string, columns: readonly Column<Row>
 }
 
 export function printRows<Row>(caption: string, columns: readonly Column<Row>[], rows: readonly Row[]) {
+  columns = columns.filter(column => column.printable !== false);
   const previousFocus = document.activeElement;
   const frame = document.createElement('iframe');
   frame.title = caption;

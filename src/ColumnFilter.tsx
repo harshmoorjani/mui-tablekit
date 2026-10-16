@@ -1,5 +1,5 @@
 import { useId } from 'react';
-import { FormControl, InputLabel, MenuItem, Select, Stack, TextField } from '@mui/material';
+import { Checkbox, FormControl, FormControlLabel, FormGroup, FormLabel, InputLabel, MenuItem, Select, Stack, TextField } from '@mui/material';
 import type { Column, FilterValue, TableLabels } from './types.js';
 
 export function ColumnFilter<Row>({ column, value, labels, onChange }: {
@@ -11,6 +11,14 @@ export function ColumnFilter<Row>({ column, value, labels, onChange }: {
   const id = useId();
   const label = labels.filter(column.header);
   if (column.renderFilter) return column.renderFilter({ id, label, value, onChange });
+  if (column.filterType === 'checkbox') return <FormControl component="fieldset">
+    <FormLabel component="legend">{label}</FormLabel>
+    <FormGroup>{column.filterOptions?.map(option => <FormControlLabel key={option.value} label={option.label || labels.emptyFilterValue}
+      control={<Checkbox checked={Array.isArray(value) && value.includes(option.value)} onChange={(_, checked) => {
+        const previous = Array.isArray(value) ? value : [];
+        onChange(checked ? [...previous, option.value] : previous.filter(entry => entry !== option.value));
+      }} />} />)}</FormGroup>
+  </FormControl>;
   if (column.filterType === 'numberRange' || column.filterType === 'dateRange') {
     const range = value && typeof value === 'object' && !Array.isArray(value) ? value : { min: '', max: '' };
     return <Stack direction="row" useFlexGap sx={{ gap: 1, flexWrap: 'wrap' }}>

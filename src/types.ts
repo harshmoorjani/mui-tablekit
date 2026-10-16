@@ -1,4 +1,6 @@
-import type { ReactNode } from 'react';
+import type { ComponentType, ElementType, ReactNode } from 'react';
+import type { TablePaginationProps } from '@mui/material/TablePagination';
+import type { TableCellProps } from '@mui/material/TableCell';
 import type { SxProps, Theme } from '@mui/material/styles';
 
 export type CellScalar = string | number | boolean | Date | null | undefined;
@@ -22,16 +24,55 @@ export interface Column<Row> {
   sortable?: boolean;
   compare?: (a: Row, b: Row) => number;
   filterable?: boolean;
-  filterType?: 'text' | 'select' | 'multiselect' | 'numberRange' | 'dateRange';
+  filterType?: 'text' | 'select' | 'multiselect' | 'checkbox' | 'numberRange' | 'dateRange';
   filterOptions?: readonly { value: string; label: string }[];
   filterMatch?: 'any' | 'all';
   filter?: (row: Row, query: FilterValue) => boolean;
   renderFilter?: (props: FilterControlProps) => ReactNode;
   searchable?: boolean;
   excluded?: boolean;
+  hideable?: boolean;
+  draggable?: boolean;
+  printable?: boolean;
+  sticky?: 'left' | 'right';
+  sortDescFirst?: boolean;
+  sortReset?: boolean;
+  renderHeader?: (column: { id: string; header: string }) => ReactNode;
   align?: 'left' | 'center' | 'right';
   headerSx?: SxProps<Theme>;
   cellSx?: (row: Row) => SxProps<Theme>;
+}
+
+export interface ColumnGroup<Row> extends Omit<Column<Row>, 'value'> {
+  columns: readonly ColumnDefinition<Row>[];
+  value?: (row: Row) => CellValue;
+}
+
+export type ColumnDefinition<Row> = Column<Row> | ColumnGroup<Row>;
+
+export interface SearchControlProps {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}
+
+export type TableAction = 'init' | 'search' | 'filter' | 'sort' | 'page' | 'pageSize' | 'selection' | 'expansion' | 'columns';
+
+export interface RowContext {
+  id: string;
+  depth: number;
+  selected: boolean;
+  expanded: boolean;
+}
+
+export interface TableComponents {
+  Table?: ElementType;
+  Head?: ElementType;
+  Body?: ElementType;
+  Row?: ElementType;
+  Cell?: TableCellProps['component'];
+  Pagination?: ComponentType<TablePaginationProps>;
 }
 
 export interface TableState {
@@ -42,6 +83,7 @@ export interface TableState {
   pageSize: number;
   selectedIds: string[];
   expandedIds: string[];
+  expandedColumnIds: string[];
   hiddenColumnIds: string[];
   columnOrder: string[];
   columnWidths: Record<string, number>;
@@ -49,10 +91,18 @@ export interface TableState {
 
 export interface CsvOptions {
   delimiter?: string;
+  rows?: 'filtered' | 'all' | 'page';
+  columns?: 'visible' | 'all';
+  transform?: (csv: string) => string | false;
 }
 
 export interface TableLabels {
   search: string;
+  showSearch: string;
+  hideSearch: string;
+  jumpToPage: string;
+  deleteRows: string;
+  deleteFailed: string;
   empty: string;
   selectPage: string;
   selectFiltered: string;
@@ -90,6 +140,8 @@ export interface TableLabels {
   columnWidth: (header: string) => string;
   dragColumn: (header: string) => string;
   resizeColumn: (header: string) => string;
+  expandColumns: (header: string) => string;
+  collapseColumns: (header: string) => string;
   downloadCsv: string;
   downloadCsvPage: string;
   print: string;
@@ -99,19 +151,28 @@ export interface TableLabels {
 
 interface BaseProps<Row> {
   rows: readonly Row[];
-  columns: readonly Column<Row>[];
+  columns: readonly ColumnDefinition<Row>[];
   getRowId: (row: Row) => string;
   /** Accessible table name; rendered as a caption. */
   caption: string;
   state?: TableState;
   defaultState?: Partial<TableState>;
   onStateChange?: (state: TableState) => void;
+  onAction?: (action: TableAction, state: TableState) => void;
+  onRowClick?: (row: Row, context: RowContext) => void;
+  onCellClick?: (row: Row, column: Column<Row>, context: RowContext) => void;
+  onRowsDelete?: (ids: readonly string[], rows: readonly Row[]) => void | false | Promise<void | false>;
   selectable?: boolean | 'single';
   isRowSelectable?: (row: Row) => boolean;
   selectOnClick?: boolean;
   selectAllScope?: 'page' | 'filtered';
+  selectionCheckboxes?: boolean;
+  selectAll?: boolean;
+  selectionToolbar?: 'inline' | 'above' | 'replace' | 'none';
   renderBulkActions?: (selectedIds: readonly string[]) => ReactNode;
   renderExpanded?: (row: Row) => ReactNode;
+  getSubRows?: (row: Row) => readonly Row[] | undefined;
+  expandOnClick?: boolean;
   isRowExpandable?: (row: Row) => boolean;
   expandAll?: boolean;
   columnControls?: boolean;
@@ -126,12 +187,23 @@ interface BaseProps<Row> {
   emptyContent?: ReactNode;
   rowSx?: (row: Row) => SxProps<Theme>;
   stickyHeader?: boolean;
+  fixedSelection?: boolean;
   maxHeight?: number | string;
-  responsive?: 'scroll' | 'stacked';
+  responsive?: 'scroll' | 'stacked' | 'simple';
+  renderRow?: (row: Row, context: RowContext, cells: ReactNode) => ReactNode;
+  renderSummary?: (rows: readonly Row[], columns: readonly Column<Row>[]) => ReactNode;
+  components?: TableComponents;
   labels?: Partial<TableLabels>;
   pageSizeOptions?: number[];
   search?: boolean;
+  caseSensitive?: boolean;
+  searchMatch?: (row: Row, query: string, columns: readonly Column<Row>[]) => boolean;
+  renderSearch?: (props: SearchControlProps) => ReactNode;
+  searchDisplay?: 'always' | 'toggle';
+  searchDebounceMs?: number;
   pagination?: boolean;
+  jumpToPage?: boolean;
+  storageKey?: string;
   filterMode?: 'immediate' | 'confirm';
 }
 

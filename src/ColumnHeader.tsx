@@ -2,8 +2,9 @@ import { useRef } from 'react';
 import { Box, Button, TableCell, TableSortLabel } from '@mui/material';
 import { columnWidth } from './model.js';
 import type { Column, TableLabels, TableState } from './types.js';
+import type { SxProps, Theme } from '@mui/material/styles';
 
-export function ColumnHeader<Row>({ column, columns, state, labels, update, reorder, resize, tableId }: {
+export function ColumnHeader<Row>({ column, columns, state, labels, update, reorder, resize, tableId, id, rowSpan = 1, sx, groupToggle }: {
   column: Column<Row>;
   columns: readonly Column<Row>[];
   state: TableState;
@@ -12,6 +13,10 @@ export function ColumnHeader<Row>({ column, columns, state, labels, update, reor
   reorder: boolean;
   resize: boolean;
   tableId: string;
+  id?: string;
+  rowSpan?: number;
+  sx?: SxProps<Theme>;
+  groupToggle?: () => void;
 }) {
   const start = useRef<{ x: number; width: number } | null>(null);
   const width = columnWidth(state.columnWidths, column.id);
@@ -23,11 +28,13 @@ export function ColumnHeader<Row>({ column, columns, state, labels, update, reor
     const from = order.indexOf(source);
     const to = order.indexOf(target);
     if (from < 0 || to < 0 || from === to) return;
+    if (columns.slice(Math.min(from, to), Math.max(from, to) + 1).some(column => column.draggable === false)) return;
     order.splice(from, 1);
     order.splice(to, 0, source);
     update({ columnOrder: order });
   };
-  return <TableCell scope="col" role="columnheader" align={column.align} sx={column.headerSx}
+  return <TableCell id={id} rowSpan={rowSpan} scope="col" role="columnheader" align={column.align}
+    sx={[...(Array.isArray(sx) ? sx : [sx ?? {}]), ...(Array.isArray(column.headerSx) ? column.headerSx : [column.headerSx ?? {}])]}
     sortDirection={state.sort?.columnId === column.id ? state.sort.direction : false}
     onDragOver={event => { if (reorder) event.preventDefault(); }}
     onDrop={event => {
@@ -37,7 +44,8 @@ export function ColumnHeader<Row>({ column, columns, state, labels, update, reor
       const data = event.dataTransfer.getData('text/plain');
       if (data.startsWith(prefix)) move(data.slice(prefix.length), column.id);
     }}>
-    {reorder && <Button size="small" draggable aria-label={labels.dragColumn(column.header)}
+    {groupToggle && <Button data-group-toggle={column.id} aria-label={labels.expandColumns(column.header)} aria-expanded={false} onClick={groupToggle}>+</Button>}
+    {reorder && column.draggable !== false && <Button size="small" draggable aria-label={labels.dragColumn(column.header)}
       sx={{ minWidth: 28, cursor: 'grab' }}
       onDragStart={event => { event.dataTransfer.setData('text/plain', `${tableId}\n${column.id}`); event.dataTransfer.effectAllowed = 'move'; }}
       onKeyDown={event => {
@@ -46,11 +54,14 @@ export function ColumnHeader<Row>({ column, columns, state, labels, update, reor
         const target = columns[columns.findIndex(entry => entry.id === column.id) + (event.key === 'ArrowLeft' ? -1 : 1)];
         if (target) move(column.id, target.id);
       }}>↔</Button>}
-    {column.sortable === false ? column.header : <TableSortLabel active={state.sort?.columnId === column.id}
+    {column.sortable === false ? column.renderHeader?.(column) ?? column.header : <TableSortLabel active={state.sort?.columnId === column.id}
       direction={state.sort?.columnId === column.id ? state.sort.direction : 'asc'} aria-label={labels.sort(column.header)}
-      onClick={() => update({ page: 0, sort: state.sort?.columnId !== column.id
-        ? { columnId: column.id, direction: 'asc' }
-        : state.sort.direction === 'asc' ? { columnId: column.id, direction: 'desc' } : null })}>{column.header}</TableSortLabel>}
+      onClick={() => {
+        const first = column.sortDescFirst ? 'desc' : 'asc';
+        update({ page: 0, sort: state.sort?.columnId !== column.id ? { columnId: column.id, direction: first }
+          : state.sort.direction === first ? { columnId: column.id, direction: first === 'asc' ? 'desc' : 'asc' }
+          : column.sortReset === false ? { columnId: column.id, direction: first } : null });
+      }}>{column.renderHeader?.(column) ?? column.header}</TableSortLabel>}
     {resize && <Box component="span" role="separator" tabIndex={0} aria-orientation="vertical"
       aria-label={labels.resizeColumn(column.header)} aria-valuemin={80} aria-valuemax={1000} aria-valuenow={width}
       sx={{ display: 'inline-block', verticalAlign: 'middle', ml: 1, width: 12, height: 24,

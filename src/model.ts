@@ -5,7 +5,7 @@ const collator = new Intl.Collator(undefined, { numeric: true });
 export function createTableState(state: Partial<TableState> = {}): TableState {
   return {
     search: '', filters: {}, sort: null, page: 0, pageSize: 10,
-    selectedIds: [], expandedIds: [], hiddenColumnIds: [], columnOrder: [], columnWidths: {}, ...state,
+    selectedIds: [], expandedIds: [], expandedColumnIds: [], hiddenColumnIds: [], columnOrder: [], columnWidths: {}, ...state,
   };
 }
 
@@ -57,6 +57,10 @@ function dateNumber(value: CellValue): number {
   return Number.isFinite(midnight) && new Date(midnight).toISOString().slice(0, 10) === day ? Date.parse(value) : NaN;
 }
 
+export function activeFilter(filter: FilterValue | undefined): boolean {
+  return Boolean(filter && (typeof filter === 'string' || (Array.isArray(filter) ? filter.length : filter.min || filter.max)));
+}
+
 function matchesFilter<Row>(column: Column<Row>, row: Row, filter: FilterValue | undefined): boolean {
   if (!filter || (Array.isArray(filter) && !filter.length) ||
       (typeof filter === 'object' && !Array.isArray(filter) && !filter.min && !filter.max)) return true;
@@ -78,9 +82,29 @@ function matchesFilter<Row>(column: Column<Row>, row: Row, filter: FilterValue |
   return Number.isFinite(number) && number >= min && number <= max;
 }
 
+export interface SearchOptions<Row> {
+  caseSensitive?: boolean;
+  searchMatch?: (row: Row, query: string, columns: readonly Column<Row>[]) => boolean;
+}
+
+export function matchesRow<Row>(row: Row, columns: readonly Column<Row>[], state: Pick<TableState, 'search' | 'filters'>, options: SearchOptions<Row> = {}) {
+  const query = state.search.trim();
+  const text = (value: string) => options.caseSensitive ? value : value.toLocaleLowerCase();
+  return (!query || (options.searchMatch ? options.searchMatch(row, query, columns)
+    : columns.some(column => column.searchable !== false && text(cellText(column.value(row))).includes(text(query))))) &&
+    columns.every(column => matchesFilter(column, row, Object.hasOwn(state.filters, column.id) ? state.filters[column.id] : undefined));
+}
+
+export function rowComparator<Row>(columns: readonly Column<Row>[], sort: TableState['sort']) {
+  const column = columns.find(column => column.id === sort?.columnId);
+  return column && sort && column.sortable !== false ? (a: Row, b: Row) =>
+    (sort.direction === 'asc' ? 1 : -1) * (column.compare ? column.compare(a, b) : compareValues(column.value(a), column.value(b))) : undefined;
+}
+
 export function getView<Row>(
   rows: readonly Row[], columns: readonly Column<Row>[], state: Pick<TableState, 'search' | 'filters' | 'sort' | 'page' | 'pageSize'>,
   serverRowCount?: number,
+  options: SearchOptions<Row> = {},
 ) {
   if (!Number.isInteger(state.page) || state.page < 0 ||
       !Number.isInteger(state.pageSize) || state.pageSize < 1) {
@@ -91,21 +115,9 @@ export function getView<Row>(
   }
   let result = rows;
   if (serverRowCount === undefined) {
-    const query = state.search.trim().toLocaleLowerCase();
-    const filtered = rows.filter(row =>
-      (!query || columns.some(column => column.searchable !== false &&
-        cellText(column.value(row)).toLocaleLowerCase().includes(query))) &&
-      columns.every(column => {
-        const filter = Object.hasOwn(state.filters, column.id) ? state.filters[column.id] : '';
-        return matchesFilter(column, row, filter);
-      }),
-    );
-    const sort = state.sort;
-    const column = columns.find(column => column.id === sort?.columnId);
-    if (column && sort && column.sortable !== false) {
-      filtered.sort((a, b) => (sort.direction === 'asc' ? 1 : -1) *
-        (column.compare ? column.compare(a, b) : compareValues(column.value(a), column.value(b))));
-    }
+    const filtered = rows.filter(row => matchesRow(row, columns, state, options));
+    const compare = rowComparator(columns, state.sort);
+    if (compare) filtered.sort(compare);
     result = filtered;
   }
   const count = serverRowCount ?? result.length;

@@ -8,7 +8,7 @@ export function ColumnControls<Row>({ columns, state, labels, update }: {
   labels: TableLabels;
   update: (patch: Partial<TableState>) => void;
 }) {
-  const visible = columns.filter(column => !state.hiddenColumnIds.includes(column.id)).length;
+  const visible = columns.filter(column => column.hideable === false || !state.hiddenColumnIds.includes(column.id)).length;
   const move = (index: number, offset: number) => {
     const order = columns.map(column => column.id);
     [order[index], order[index + offset]] = [order[index + offset]!, order[index]!];
@@ -19,17 +19,17 @@ export function ColumnControls<Row>({ columns, state, labels, update }: {
       <summary>{labels.columns}</summary>
       <Stack spacing={1} sx={{ pt: 1 }}>
         {columns.map((column, index) => {
-          const hidden = state.hiddenColumnIds.includes(column.id);
+          const hidden = column.hideable !== false && state.hiddenColumnIds.includes(column.id);
           return (
             <Stack key={column.id} direction="row" useFlexGap sx={{ gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
               <FormControlLabel label={labels.showColumn(column.header)}
-                control={<Checkbox checked={!hidden} disabled={!hidden && visible === 1}
+                control={<Checkbox checked={!hidden} disabled={column.hideable === false || (!hidden && visible === 1)}
                   onChange={(_, checked) => update({ hiddenColumnIds: checked
                     ? state.hiddenColumnIds.filter(id => id !== column.id) : [...state.hiddenColumnIds, column.id] })} />}
               />
-              <Button aria-label={labels.moveColumn(column.header, 'previous')} disabled={index === 0}
+              <Button aria-label={labels.moveColumn(column.header, 'previous')} disabled={index === 0 || column.draggable === false || columns[index - 1]?.draggable === false}
                 onClick={() => move(index, -1)}>←</Button>
-              <Button aria-label={labels.moveColumn(column.header, 'next')} disabled={index === columns.length - 1}
+              <Button aria-label={labels.moveColumn(column.header, 'next')} disabled={index === columns.length - 1 || column.draggable === false || columns[index + 1]?.draggable === false}
                 onClick={() => move(index, 1)}>→</Button>
               <TextField key={columnWidth(state.columnWidths, column.id)} type="number" size="small" label={labels.columnWidth(column.header)} sx={{ width: 160 }}
                 slotProps={{ htmlInput: { min: 80, max: 1000, step: 10 } }}
