@@ -36,11 +36,14 @@ it.each([false, true])('keeps a visible column when toggling a group with hidden
   expect(screen.getByRole('columnheader', {name: expanded ? /A/ : /Total/})).toBeVisible()
 })
 
-it('leaves an aggregate visible when all of its children are excluded', () => {
+it.each([false, true])('leaves an aggregate visible when its children are excluded (with sibling: %s)', sibling => {
   render(
     <DataTable
       {...base}
-      columns={[{id: 'total', header: 'Total', value: row => row.id, columns: [{...columns[0]!, excluded: true}]}]}
+      columns={[
+        ...(sibling ? [{...columns[0]!, id: 'sibling'}] : []),
+        {id: 'total', header: 'Total', value: row => row.id, columns: [{...columns[0]!, excluded: true}]}
+      ]}
     />
   )
   fireEvent.click(screen.getByRole('button', {name: 'Expand Total columns'}))
