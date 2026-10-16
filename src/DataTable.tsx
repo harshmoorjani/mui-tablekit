@@ -55,6 +55,7 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
   }
   const pageIds = view.rows.map(getRowId);
   const orderedColumns = getOrderedColumns(columns, state.columnOrder);
+  const filterColumns = orderedColumns.filter(column => column.filterable ?? Boolean(column.filterType || column.renderFilter));
   const visibleColumns = orderedColumns.filter(column => !state.hiddenColumnIds.includes(column.id));
   if (!visibleColumns.length) throw new Error('MUI Tablekit: at least one column must be visible.');
   const sized = columnControls || Object.keys(state.columnWidths).length > 0;
@@ -93,8 +94,8 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
         )}
       </Stack>
       {columnControls && <ColumnControls columns={orderedColumns} state={state} labels={labels} update={update} />}
-      {orderedColumns.some(column => column.filterable ?? Boolean(column.filterType)) && <Stack direction="row" useFlexGap sx={{ px: 2, pb: 2, gap: 2, flexWrap: 'wrap' }}>
-        {orderedColumns.filter(column => column.filterable ?? Boolean(column.filterType)).map(column => (
+      {filterColumns.length > 0 && <Stack direction="row" useFlexGap sx={{ px: 2, pb: 2, gap: 2, flexWrap: 'wrap' }}>
+        {filterColumns.map(column => (
           <ColumnFilter key={column.id} column={column} labels={labels}
             value={Object.hasOwn(state.filters, column.id) ? state.filters[column.id] : undefined}
             onChange={value => update({ page: 0, filters: { ...state.filters, [column.id]: value } })} />

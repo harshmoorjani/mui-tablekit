@@ -315,6 +315,54 @@ it('rejects incomplete server configuration from JavaScript consumers instead of
   }
 });
 
+it('uses an accessible custom widget on a hidden column with the existing filter and state contract', async () => {
+  const user = userEvent.setup();
+  const change = vi.fn();
+  const custom: Column<Person> = {
+    id: 'team', header: 'Team', value: row => row.team,
+    filter: (row, value) => value === 'true' && row.team === 'Engineering',
+    renderFilter: ({ id, label, value, onChange }) => <label htmlFor={id}>{label}
+      <input id={id} type="checkbox" checked={value === 'true'} onChange={event => onChange(event.target.checked ? 'true' : '')} />
+    </label>,
+  };
+  render(<DataTable {...base} columns={[columns[0]!, custom, columns[2]!]} selectable
+    defaultState={{ page: 2, pageSize: 1, selectedIds: ['a'], hiddenColumnIds: ['team'] }} onStateChange={change} />);
+  const widget = screen.getByRole('checkbox', { name: 'Filter Team' });
+  expect(screen.queryByRole('textbox', { name: 'Filter Team' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('columnheader', { name: 'Team' })).not.toBeInTheDocument();
+  await user.click(widget);
+  expect(widget).toBeChecked();
+  expect(screen.getByText('Ben')).toBeVisible();
+  expect(change).toHaveBeenLastCalledWith(expect.objectContaining({ page: 0, filters: { team: 'true' }, selectedIds: ['a'] }));
+  await user.click(widget);
+  expect(screen.getByText('Ada')).toBeVisible();
+});
+
+it('keeps custom widgets controlled in server mode and allows their control to be suppressed', async () => {
+  const user = userEvent.setup();
+  const change = vi.fn();
+  const predicate = vi.fn(() => false);
+  const custom: Column<Person> = {
+    ...columns[1]!, filter: predicate,
+    renderFilter: ({ label, value, onChange }) => <label>{label}
+      <input type="checkbox" checked={value === 'true'} onChange={event => onChange(event.target.checked ? 'true' : '')} />
+    </label>,
+  };
+  const props = { ...base, columns: [custom], mode: 'server' as const, rowCount: 100,
+    state: createTableState({ page: 2 }), onStateChange: change };
+  const { rerender } = render(<DataTable {...props} />);
+  await user.click(screen.getByRole('checkbox', { name: 'Filter Team' }));
+  expect(screen.getByRole('checkbox', { name: 'Filter Team' })).not.toBeChecked();
+  const next = change.mock.calls[0]![0] as TableState;
+  expect(next).toEqual(expect.objectContaining({ page: 0, filters: { team: 'true' } }));
+  rerender(<DataTable {...props} state={next} />);
+  expect(screen.getByRole('checkbox', { name: 'Filter Team' })).toBeChecked();
+  expect(screen.getAllByRole('row')).toHaveLength(4);
+  expect(predicate).not.toHaveBeenCalled();
+  rerender(<DataTable {...props} state={next} columns={[{ ...custom, filterable: false }]} />);
+  expect(screen.queryByRole('checkbox', { name: 'Filter Team' })).not.toBeInTheDocument();
+});
+
 // Server operations require a caller-owned query and total count.
 // @ts-expect-error server mode requires state and onStateChange
 const invalidServer: DataTableProps<Person> = { ...base, mode: 'server', rowCount: 100 };

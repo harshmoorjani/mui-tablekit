@@ -10,6 +10,7 @@ export function ColumnFilter<Row>({ column, value, labels, onChange }: {
 }) {
   const id = useId();
   const label = labels.filter(column.header);
+  if (column.renderFilter) return column.renderFilter({ id, label, value, onChange });
   if (column.filterType === 'numberRange' || column.filterType === 'dateRange') {
     const range = value && typeof value === 'object' && !Array.isArray(value) ? value : { min: '', max: '' };
     return <Stack direction="row" useFlexGap sx={{ gap: 1, flexWrap: 'wrap' }}>

@@ -3,6 +3,13 @@ import type { ReactNode } from 'react';
 export type CellValue = string | number | boolean | Date | null | undefined;
 export type FilterValue = string | string[] | { min: string; max: string };
 
+export interface FilterControlProps {
+  id: string;
+  label: string;
+  value: FilterValue | undefined;
+  onChange: (value: FilterValue) => void;
+}
+
 export interface Column<Row> {
   id: string;
   header: string;
@@ -14,6 +21,7 @@ export interface Column<Row> {
   filterType?: 'text' | 'select' | 'multiselect' | 'numberRange' | 'dateRange';
   filterOptions?: readonly { value: string; label: string }[];
   filter?: (row: Row, query: FilterValue) => boolean;
+  renderFilter?: (props: FilterControlProps) => ReactNode;
   searchable?: boolean;
   align?: 'left' | 'center' | 'right';
 }
