@@ -260,7 +260,7 @@ describe('DataTable', () => {
         filters: { team: 'Engineering' }, sort: { columnId: 'age', direction: 'desc' },
         hiddenColumnIds: ['team'], columnOrder: ['age', 'name'] }} />);
       await user.click(screen.getByRole('button', { name: 'Download CSV' }));
-      expect(csv).toHaveBeenCalledWith('people.csv', [columns[2], columns[0]], [rows[2], rows[1]]);
+      expect(csv).toHaveBeenCalledWith('people.csv', [columns[2], columns[0]], [rows[2], rows[1]], undefined);
       await user.click(screen.getByRole('button', { name: /^Print$/ }));
       expect(print).toHaveBeenCalledWith('People', [columns[2], columns[0]], [rows[2], rows[1]]);
     } finally { csv.mockRestore(); print.mockRestore(); }
@@ -273,7 +273,7 @@ describe('DataTable', () => {
       render(<DataTable {...base} rows={[rows[1]!]} csvFileName="page.csv" printable mode="server" rowCount={100}
         state={createTableState({ page: 2 })} onStateChange={() => {}} />);
       await user.click(screen.getByRole('button', { name: 'Download page CSV' }));
-      expect(csv).toHaveBeenCalledWith('page.csv', columns, [rows[1]]);
+      expect(csv).toHaveBeenCalledWith('page.csv', columns, [rows[1]], undefined);
       expect(screen.getByRole('button', { name: 'Print page' })).toBeVisible();
     } finally { csv.mockRestore(); }
   });
@@ -343,7 +343,7 @@ it('reuses the row model for selection and export, and refreshes it when data ch
     await user.click(screen.getByRole('checkbox', { name: 'Select row b' }));
     await user.click(screen.getByRole('button', { name: 'Download CSV' }));
     expect(compare).toHaveBeenCalledTimes(comparisons);
-    expect(csv).toHaveBeenCalledWith('people.csv', stableColumns, [rows[1], rows[2], rows[0]]);
+    expect(csv).toHaveBeenCalledWith('people.csv', stableColumns, [rows[1], rows[2], rows[0]], undefined);
     rerender(<DataTable {...props} rows={rows.map(row => row.id === 'a' ? { ...row, age: 20 } : row)} />);
     expect(compare.mock.calls.length).toBeGreaterThan(comparisons);
     expect(screen.getAllByRole('row')[1]).toHaveTextContent('Ada');
@@ -561,7 +561,7 @@ it('exports the same filtered client rows displayed when search and pagination a
     render(<DataTable {...base} search={false} pagination={false} csvFileName="people.csv"
       defaultState={{ search: 'missing', page: 2, pageSize: 1, filters: { team: 'Engineering' } }} />);
     await user.click(screen.getByRole('button', { name: 'Download CSV' }));
-    expect(csv).toHaveBeenCalledWith('people.csv', columns, [rows[1], rows[2]]);
+    expect(csv).toHaveBeenCalledWith('people.csv', columns, [rows[1], rows[2]], undefined);
   } finally { csv.mockRestore(); }
 });
 

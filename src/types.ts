@@ -16,6 +16,8 @@ export interface Column<Row> {
   header: string;
   value: (row: Row) => CellValue;
   render?: (value: CellValue, row: Row) => ReactNode;
+  exportable?: boolean;
+  csvValue?: (value: CellValue, row: Row) => CellValue;
   sortable?: boolean;
   compare?: (a: Row, b: Row) => number;
   filterable?: boolean;
@@ -40,6 +42,10 @@ export interface TableState {
   hiddenColumnIds: string[];
   columnOrder: string[];
   columnWidths: Record<string, number>;
+}
+
+export interface CsvOptions {
+  delimiter?: string;
 }
 
 export interface TableLabels {
@@ -100,6 +106,7 @@ interface BaseProps<Row> {
   expandAll?: boolean;
   columnControls?: boolean;
   csvFileName?: string;
+  csvOptions?: CsvOptions;
   printable?: boolean;
   toolbar?: ReactNode;
   labels?: Partial<TableLabels>;

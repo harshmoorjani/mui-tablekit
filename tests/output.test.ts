@@ -6,6 +6,16 @@ const columns: Column<{ value: CellValue }>[] = [{ id: 'value', header: 'Value',
 
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.useRealTimers(); });
 
+it('supports delimiter, column exclusions and formatters without bypassing formula protection', () => {
+  expect(toCsv([{ ...columns[0]!, csvValue: () => '=SUM(1)' },
+    { id: 'hidden', header: 'Secret', value: () => 'secret', exportable: false },
+    { id: 'tags', header: 'Tags', value: () => ['=1', 'two'] }], [{ value: 5 }], { delimiter: ';' }))
+    .toBe('\uFEFF"Value";"Tags"\r\n"\t=SUM(1)";"\t=1, two"');
+  for (const delimiter of ['', ';;', '"', '\n', '\t']) {
+    expect(() => toCsv(columns, [], { delimiter })).toThrow(/delimiter/);
+  }
+});
+
 it('quotes CSV fields, preserves multiline text, and protects formula-like strings', () => {
   const values: CellValue[] = ['a,"b"\nc', '=2+2', '  @SUM(A1)', '＝1+1', '\r=1', '\ttext', -12, true, null, new Date('2025-01-01')];
   expect(toCsv(columns, values.map(value => ({ value })))).toBe(

@@ -1,20 +1,27 @@
 import { cellText } from './model.js';
-import type { CellValue, Column } from './types.js';
+import type { CellValue, Column, CsvOptions } from './types.js';
 
 function csvCell(value: CellValue) {
   const text = cellText(value);
   // Keep formula-like strings as text in spreadsheet imports, including full-width prefixes.
-  const guarded = typeof value === 'string' && /^[\s\u0000-\u001f]*[=+\-@＝＋－＠\t\r\n]/u.test(text) ? `\t${text}` : text;
+  const guarded = typeof value !== 'number' && /^[\s\u0000-\u001f]*[=+\-@＝＋－＠\t\r\n]/u.test(text) ? `\t${text}` : text;
   return `"${guarded.replaceAll('"', '""')}"`;
 }
 
-export function toCsv<Row>(columns: readonly Column<Row>[], rows: readonly Row[]) {
-  return '\uFEFF' + [columns.map(column => csvCell(column.header)).join(','),
-    ...rows.map(row => columns.map(column => csvCell(column.value(row))).join(','))].join('\r\n');
+export function toCsv<Row>(columns: readonly Column<Row>[], rows: readonly Row[], { delimiter = ',' }: CsvOptions = {}) {
+  if (delimiter.length !== 1 || /["\r\n\u0000-\u001f\u007f]/u.test(delimiter)) {
+    throw new Error('MUI Tablekit: CSV delimiter must be one printable character other than a quote.');
+  }
+  const exported = columns.filter(column => column.exportable !== false);
+  return '\uFEFF' + [exported.map(column => csvCell(column.header)).join(delimiter),
+    ...rows.map(row => exported.map(column => {
+      const value = column.value(row);
+      return csvCell(column.csvValue ? column.csvValue(value, row) : value);
+    }).join(delimiter))].join('\r\n');
 }
 
-export function downloadCsv<Row>(filename: string, columns: readonly Column<Row>[], rows: readonly Row[]) {
-  const url = URL.createObjectURL(new Blob([toCsv(columns, rows)], { type: 'text/csv;charset=utf-8' }));
+export function downloadCsv<Row>(filename: string, columns: readonly Column<Row>[], rows: readonly Row[], options?: CsvOptions) {
+  const url = URL.createObjectURL(new Blob([toCsv(columns, rows, options)], { type: 'text/csv;charset=utf-8' }));
   const link = document.createElement('a');
   link.href = url;
   link.download = filename;

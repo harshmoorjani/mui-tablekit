@@ -101,7 +101,7 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
         {searchEnabled && <TextField label={labels.search} size="small" type="search" value={state.search}
           onChange={event => update({ search: event.target.value, page: 0 })} />}
         {toolbar}
-        {props.csvFileName && <Button onClick={() => downloadCsv(props.csvFileName!, visibleColumns, view.allRows)}>
+        {props.csvFileName && <Button onClick={() => downloadCsv(props.csvFileName!, visibleColumns, view.allRows, props.csvOptions)}>
           {props.mode === 'server' ? labels.downloadCsvPage : labels.downloadCsv}
         </Button>}
         {props.printable && <Button onClick={() => printRows(caption, visibleColumns, view.allRows)}>
