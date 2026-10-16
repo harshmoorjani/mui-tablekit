@@ -85,9 +85,13 @@ Active filters produce removable chips, including on hidden columns. Multiselect
 
 Filters open from the toolbar icon in a popover and apply immediately by default. Set `filterDisplay="inline"` to show the controls beneath the toolbar. `filterMode="confirm"` uses a Filters dialog instead: edits and its reset button affect a private draft. Apply commits the draft once and resets the page; Cancel, Escape, or clicking outside discards it. Chips outside the dialog still remove applied filters immediately. Labels include `filters`, `applyFilters`, and `cancelFilters`. Custom widgets must treat their supplied value as immutable.
 
+The immediate popover keeps Reset filters and Close filters reachable while scrolling. Built-in fields use equal-width columns on desktop and stack on mobile; custom widgets get a full row and own their internal layout. Customize the close action with `labels.closeFilters`.
+
 ### Search and pagination switches
 
 `caseSensitive` changes global search matching; `searchMatch(row, query, columns)` replaces it. `renderSearch({ id, label, value, onChange })` supplies a custom input. `searchDisplay="toggle"` adds a show/hide icon without clearing the query. `searchDebounceMs={200}` delays updates and cancels pending input on unmount.
+
+When hidden search still has a query, its icon stays active and its tooltip includes the query. Opening search focuses the default input. Custom search renderers receive an optional `autoFocus` flag to preserve that behavior.
 
 The compact footer shows `Rows/Page: [N] | Page: ◀ [X] / Y ▶`. Page selection uses a dropdown for up to 200 pages, then bounded numeric entry to avoid creating huge menus. `jumpToPage` also requests numeric entry for smaller counts; commit with Enter or blur. Labels `rowsPerPage` and `page` customize the captions. A visually hidden row range remains available to assistive technology through `labels.displayedRows`.
 
@@ -155,6 +159,8 @@ Pass `renderExpanded(row)` to enable row details. Expansion uses stable row IDs 
 `isRowExpandable(row)` restricts which rows can show details. `expandAll` adds a header toggle for all eligible filtered client rows, or only supplied server rows. Collapsing that scope preserves expansion IDs outside it. Changing eligibility hides the details without deleting their IDs.
 
 Set `columnControls` to show a toolbar icon opening visibility, ordering, and width controls. Checkboxes preserve at least one visible column; move buttons support keyboard operation. Width inputs apply on blur and clamp to 80–1000 pixels. Columns can stretch to fill the table container. These controls do not alter selection, expansion, sorting, or filters.
+
+Column-panel arrows stay within the same sticky zone and keep focus on an enabled move button after reordering. The panel uses aligned controls and a persistent close action, labeled by `labels.closeColumns`.
 
 Layout is also controllable through `hiddenColumnIds`, `columnOrder`, and `columnWidths` without the panel. At least one column must remain visible. Unknown/duplicate order IDs are ignored, and new columns are appended in definition order. Only the supplied column definitions can appear.
 
