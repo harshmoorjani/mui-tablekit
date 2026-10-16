@@ -1,8 +1,9 @@
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
+  base: './',
   build: {
-    outDir: 'demo-dist',
+    outDir: 'docs',
     // The demo is entirely client-side; the published tsc output keeps directives.
     rolldownOptions: { checks: { moduleLevelDirective: false } },
   },

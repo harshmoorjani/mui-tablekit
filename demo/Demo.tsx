@@ -3,12 +3,13 @@ import {
   Alert, Box, Button, Checkbox, Chip, Container, CssBaseline, FormControlLabel,
   MenuItem, Paper, Stack, Switch, TextField, Typography,
 } from '@mui/material';
-import { createTheme, ThemeProvider } from '@mui/material/styles';
+import { ThemeProvider } from '@mui/material/styles';
 import { createTableState, DataTable } from '../src/index.js';
 import type { Column } from '../src/index.js';
 import { createPeople, locations, statuses, teams } from './data.js';
 import type { Person } from './data.js';
 import { ServerDemo } from './ServerDemo.js';
+import { demoTheme, themes } from './themes.js';
 
 const options = (values: string[]) => values.map(value => ({ value, label: value }));
 const currency = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
@@ -54,14 +55,14 @@ export function Demo() {
   const [count, setCount] = useState(1000);
   const [features, setFeatures] = useState(defaults);
   const [state, setState] = useState(() => createTableState({ pageSize: 25 }));
-  const [dark, setDark] = useState(false);
+  const [themeId, setThemeId] = useState('canvas');
   const [inspect, setInspect] = useState(false);
   const [message, setMessage] = useState('');
   const [single, setSingle] = useState(false);
   const [allSkills, setAllSkills] = useState(false);
   const [server, setServer] = useState(false);
   const rows = useMemo(() => createPeople(count), [count]);
-  const theme = useMemo(() => createTheme({ palette: { mode: dark ? 'dark' : 'light', contrastThreshold: 4.5 } }), [dark]);
+  const theme = useMemo(() => demoTheme(themeId), [themeId]);
   const activeColumns = useMemo(() => columns.map(column => ({
     ...column,
     filterable: features.filters && column.filterable !== false,
@@ -85,7 +86,7 @@ export function Demo() {
     setCount(1000);
     setFeatures(defaults);
     setState(createTableState({ pageSize: 25 }));
-    setDark(false);
+    setThemeId('canvas');
     setInspect(false);
     setMessage('');
     setSingle(false);
@@ -123,7 +124,9 @@ export function Demo() {
             onChange={event => setState(previous => ({ ...previous, pageSize: Number(event.target.value), page: 0 }))}>
             {[10, 25, 50, 100].map(size => <MenuItem key={size} value={size}>{size}</MenuItem>)}
           </TextField>
-          <FormControlLabel label="Dark theme" control={<Switch checked={dark} onChange={(_, checked) => setDark(checked)} />} />
+          <TextField select label="Theme" size="small" value={themeId} sx={{ minWidth: 180 }} onChange={event => setThemeId(event.target.value)}>
+            {themes.map(preset => <MenuItem key={preset.id} value={preset.id}>{preset.label}</MenuItem>)}
+          </TextField>
           <FormControlLabel label="Show table state" control={<Switch checked={inspect} onChange={(_, checked) => setInspect(checked)} />} />
           <FormControlLabel label="Show server adapter example" control={<Switch checked={server} onChange={(_, checked) => setServer(checked)} />} />
           <FormControlLabel label="Single selection" control={<Switch checked={single} onChange={(_, checked) => {

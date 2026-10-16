@@ -19,6 +19,8 @@ Run `npm run check` for type checks, interaction tests, package compilation, and
 
 The playground has up to 10,000 synthetic rows, feature switches, and an optional server adapter example. It contains no application data or credentials.
 
+`npm run demo:build` builds the playground into `/docs`, with relative asset paths and `.nojekyll`. Commit that folder, then configure repository Settings → Pages → Deploy from a branch → `main` → `/docs`. No workflow file or external hosting account is required; GitHub runs its own Pages deployment internally. Select Canvas or Garden for light themes, Midnight or Plum for dark themes. Pages has not been enabled or deployed by these local changes.
+
 ## Usage
 
 React 19.3.1+, MUI 9.5+, Emotion React 11.5+, and Emotion Styled 11.3+ are peer dependencies. Only these major versions are currently supported. Development uses TypeScript 6.0.3. Current checks use React 19.3.1, MUI 9.5.0, and Emotion React/Styled 11.14.x; every version within the peer ranges has not been tested.
