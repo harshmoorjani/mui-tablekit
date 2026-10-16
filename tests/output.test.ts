@@ -1,118 +1,167 @@
-import { afterEach, expect, it, vi } from 'vitest';
-import { downloadCsv, printRows, toCsv } from '../src/output.js';
-import type { CellValue, Column } from '../src/index.js';
+import {afterEach, expect, it, vi} from 'vitest'
+import {downloadCsv, printRows, toCsv} from '../src/output.js'
+import type {CellValue, Column} from '../src/index.js'
 
-const columns: Column<{ value: CellValue }>[] = [{ id: 'value', header: 'Value', value: row => row.value }];
+const columns: Column<{value: CellValue}>[] = [{id: 'value', header: 'Value', value: row => row.value}]
 
-afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.useRealTimers(); });
+afterEach(() => {
+  vi.restoreAllMocks()
+  vi.unstubAllGlobals()
+  vi.useRealTimers()
+})
 
 it('supports delimiter, column exclusions and formatters without bypassing formula protection', () => {
-  expect(toCsv([{ ...columns[0]!, csvValue: () => '=SUM(1)' },
-    { id: 'hidden', header: 'Secret', value: () => 'secret', exportable: false },
-    { id: 'tags', header: 'Tags', value: () => ['=1', 'two'] }], [{ value: 5 }], { delimiter: ';' }))
-    .toBe('\uFEFF"Value";"Tags"\r\n"\t=SUM(1)";"\t=1, two"');
+  expect(
+    toCsv(
+      [
+        {...columns[0]!, csvValue: () => '=SUM(1)'},
+        {id: 'hidden', header: 'Secret', value: () => 'secret', exportable: false},
+        {id: 'tags', header: 'Tags', value: () => ['=1', 'two']}
+      ],
+      [{value: 5}],
+      {delimiter: ';'}
+    )
+  ).toBe('\uFEFF"Value";"Tags"\r\n"\t=SUM(1)";"\t=1, two"')
   for (const delimiter of ['', ';;', '"', '\n', '\t']) {
-    expect(() => toCsv(columns, [], { delimiter })).toThrow(/delimiter/);
+    expect(() => toCsv(columns, [], {delimiter})).toThrow(/delimiter/)
   }
-});
+})
 
 it('quotes CSV fields, preserves multiline text, and protects formula-like strings', () => {
-  const values: CellValue[] = ['a,"b"\nc', '=2+2', '  @SUM(A1)', '＝1+1', '\r=1', '\ttext', -12, true, null, new Date('2025-01-01')];
-  expect(toCsv(columns, values.map(value => ({ value })))).toBe(
-    '\uFEFF"Value"\r\n"a,""b""\nc"\r\n"\t=2+2"\r\n"\t  @SUM(A1)"\r\n"\t＝1+1"\r\n"\t\r=1"\r\n"\t\ttext"\r\n"-12"\r\n"true"\r\n""\r\n"2025-01-01T00:00:00.000Z"',
-  );
-  expect(toCsv([{ ...columns[0]!, header: '=header' }], [])).toBe('\uFEFF"\t=header"');
-});
+  const values: CellValue[] = [
+    'a,"b"\nc',
+    '=2+2',
+    '  @SUM(A1)',
+    '＝1+1',
+    '\r=1',
+    '\ttext',
+    -12,
+    true,
+    null,
+    new Date('2025-01-01')
+  ]
+  expect(
+    toCsv(
+      columns,
+      values.map(value => ({value}))
+    )
+  ).toBe(
+    '\uFEFF"Value"\r\n"a,""b""\nc"\r\n"\t=2+2"\r\n"\t  @SUM(A1)"\r\n"\t＝1+1"\r\n"\t\r=1"\r\n"\t\ttext"\r\n"-12"\r\n"true"\r\n""\r\n"2025-01-01T00:00:00.000Z"'
+  )
+  expect(toCsv([{...columns[0]!, header: '=header'}], [])).toBe('\uFEFF"\t=header"')
+})
 
 it('downloads a Blob and releases the temporary URL and link', () => {
-  vi.useFakeTimers();
-  const create = vi.fn((_blob: Blob) => 'blob:test');
-  const revoke = vi.fn();
-  vi.stubGlobal('URL', { createObjectURL: create, revokeObjectURL: revoke });
+  vi.useFakeTimers()
+  const create = vi.fn((_blob: Blob) => 'blob:test')
+  const revoke = vi.fn()
+  vi.stubGlobal('URL', {createObjectURL: create, revokeObjectURL: revoke})
   const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
-    expect(this.download).toBe('people.csv');
-    expect(this.href).toBe('blob:test');
-  });
-  downloadCsv('people.csv', columns, [{ value: 'Ada' }]);
-  expect(click).toHaveBeenCalledOnce();
-  expect(create.mock.calls[0]?.[0]).toBeInstanceOf(Blob);
-  expect(document.querySelector('a')).toBeNull();
-  vi.runAllTimers();
-  expect(revoke).toHaveBeenCalledWith('blob:test');
-});
+    expect(this.download).toBe('people.csv')
+    expect(this.href).toBe('blob:test')
+  })
+  downloadCsv('people.csv', columns, [{value: 'Ada'}])
+  expect(click).toHaveBeenCalledOnce()
+  expect(create.mock.calls[0]?.[0]).toBeInstanceOf(Blob)
+  expect(document.querySelector('a')).toBeNull()
+  vi.runAllTimers()
+  expect(revoke).toHaveBeenCalledWith('blob:test')
+})
 
 it('can cancel or replace CSV output before creating a download', () => {
-  const create = vi.fn(() => 'blob:custom');
-  vi.stubGlobal('URL', { createObjectURL: create, revokeObjectURL: vi.fn() });
-  vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
-  downloadCsv('test.csv', columns, [{ value: 'x' }], { transform: () => false });
-  expect(create).not.toHaveBeenCalled();
-  downloadCsv('test.csv', columns, [{ value: 'x' }], { transform: csv => `Custom\r\n${csv}` });
-  expect(create).toHaveBeenCalledOnce();
-});
+  const create = vi.fn(() => 'blob:custom')
+  vi.stubGlobal('URL', {createObjectURL: create, revokeObjectURL: vi.fn()})
+  vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+  downloadCsv('test.csv', columns, [{value: 'x'}], {transform: () => false})
+  expect(create).not.toHaveBeenCalled()
+  downloadCsv('test.csv', columns, [{value: 'x'}], {transform: csv => `Custom\r\n${csv}`})
+  expect(create).toHaveBeenCalledOnce()
+})
 
 it('prints a separate text-only document and cleans up after the dialog or timeout', () => {
-  const append = document.body.append.bind(document.body);
-  const print = vi.fn();
+  const append = document.body.append.bind(document.body)
+  const print = vi.fn()
   vi.spyOn(document.body, 'append').mockImplementation((...nodes) => {
-    append(...nodes);
-    const frame = nodes[0] as HTMLIFrameElement;
-    vi.spyOn(frame.contentWindow!, 'print').mockImplementation(print);
-    vi.spyOn(frame.contentWindow!, 'focus').mockImplementation(() => {});
-  });
-  printRows('<People>', [...columns, { ...columns[0]!, id: 'private', header: 'Do not print', printable: false }], [{ value: '<img src=x onerror=alert(1)>' }]);
-  const frame = document.querySelector('iframe')!;
-  expect(frame.contentDocument!.querySelector('caption')).toHaveTextContent('<People>');
-  expect(frame.contentDocument!.querySelector('td')).toHaveTextContent('<img src=x onerror=alert(1)>');
-  expect(frame.contentDocument!.querySelector('img')).toBeNull();
-  expect(frame.contentDocument!.body).not.toHaveTextContent('Do not print');
-  expect(print).toHaveBeenCalledOnce();
-  frame.contentWindow!.dispatchEvent(new Event('afterprint'));
-  expect(document.querySelector('iframe')).toBeNull();
-  vi.useFakeTimers();
-  printRows('People', columns, []);
-  expect(document.querySelector('iframe')).not.toBeNull();
-  vi.advanceTimersByTime(60_000);
-  expect(document.querySelector('iframe')).toBeNull();
-});
+    append(...nodes)
+    const frame = nodes[0] as HTMLIFrameElement
+    vi.spyOn(frame.contentWindow!, 'print').mockImplementation(print)
+    vi.spyOn(frame.contentWindow!, 'focus').mockImplementation(() => {})
+  })
+  printRows(
+    '<People>',
+    [...columns, {...columns[0]!, id: 'private', header: 'Do not print', printable: false}],
+    [{value: '<img src=x onerror=alert(1)>'}]
+  )
+  const frame = document.querySelector('iframe')!
+  expect(frame.contentDocument!.querySelector('caption')).toHaveTextContent('<People>')
+  expect(frame.contentDocument!.querySelector('td')).toHaveTextContent('<img src=x onerror=alert(1)>')
+  expect(frame.contentDocument!.querySelector('img')).toBeNull()
+  expect(frame.contentDocument!.body).not.toHaveTextContent('Do not print')
+  expect(print).toHaveBeenCalledOnce()
+  frame.contentWindow!.dispatchEvent(new Event('afterprint'))
+  expect(document.querySelector('iframe')).toBeNull()
+  vi.useFakeTimers()
+  printRows('People', columns, [])
+  expect(document.querySelector('iframe')).not.toBeNull()
+  vi.advanceTimersByTime(60_000)
+  expect(document.querySelector('iframe')).toBeNull()
+})
 
 it('removes the print frame when printing throws', () => {
-  const append = document.body.append.bind(document.body);
+  const append = document.body.append.bind(document.body)
   vi.spyOn(document.body, 'append').mockImplementation((...nodes) => {
-    append(...nodes);
-    const frame = nodes[0] as HTMLIFrameElement;
-    vi.spyOn(frame.contentWindow!, 'focus').mockImplementation(() => {});
-    vi.spyOn(frame.contentWindow!, 'print').mockImplementation(() => { throw new Error('Print unavailable'); });
-  });
-  expect(() => printRows('People', columns, [])).toThrow('Print unavailable');
-  expect(document.querySelector('iframe')).toBeNull();
-});
+    append(...nodes)
+    const frame = nodes[0] as HTMLIFrameElement
+    vi.spyOn(frame.contentWindow!, 'focus').mockImplementation(() => {})
+    vi.spyOn(frame.contentWindow!, 'print').mockImplementation(() => {
+      throw new Error('Print unavailable')
+    })
+  })
+  expect(() => printRows('People', columns, [])).toThrow('Print unavailable')
+  expect(document.querySelector('iframe')).toBeNull()
+})
 
 it('removes the print frame when a cell renderer fails before printing', () => {
-  expect(() => printRows('People', [{ ...columns[0]!, value: () => { throw new Error('Bad value'); } }], [{ value: 'Ada' }])).toThrow('Bad value');
-  expect(document.querySelector('iframe')).toBeNull();
-});
+  expect(() =>
+    printRows(
+      'People',
+      [
+        {
+          ...columns[0]!,
+          value: () => {
+            throw new Error('Bad value')
+          }
+        }
+      ],
+      [{value: 'Ada'}]
+    )
+  ).toThrow('Bad value')
+  expect(document.querySelector('iframe')).toBeNull()
+})
 
 it('restores keyboard focus after removing the focused print frame', () => {
-  const trigger = document.createElement('button');
-  const other = document.createElement('button');
-  document.body.append(trigger);
-  document.body.append(other);
-  trigger.focus();
-  const append = document.body.append.bind(document.body);
+  const trigger = document.createElement('button')
+  const other = document.createElement('button')
+  document.body.append(trigger)
+  document.body.append(other)
+  trigger.focus()
+  const append = document.body.append.bind(document.body)
   vi.spyOn(document.body, 'append').mockImplementation((...nodes) => {
-    append(...nodes);
-    const frame = nodes[0] as HTMLIFrameElement;
-    vi.spyOn(frame.contentWindow!, 'focus').mockImplementation(() => frame.focus());
-    vi.spyOn(frame.contentWindow!, 'print').mockImplementation(() => {});
-  });
+    append(...nodes)
+    const frame = nodes[0] as HTMLIFrameElement
+    vi.spyOn(frame.contentWindow!, 'focus').mockImplementation(() => frame.focus())
+    vi.spyOn(frame.contentWindow!, 'print').mockImplementation(() => {})
+  })
   try {
-    printRows('People', columns, []);
-    document.querySelector('iframe')!.contentWindow!.dispatchEvent(new Event('afterprint'));
-    expect(trigger).toHaveFocus();
-    printRows('People', columns, []);
-    other.focus();
-    document.querySelector('iframe')!.contentWindow!.dispatchEvent(new Event('afterprint'));
-    expect(other).toHaveFocus();
-  } finally { trigger.remove(); other.remove(); }
-});
+    printRows('People', columns, [])
+    document.querySelector('iframe')!.contentWindow!.dispatchEvent(new Event('afterprint'))
+    expect(trigger).toHaveFocus()
+    printRows('People', columns, [])
+    other.focus()
+    document.querySelector('iframe')!.contentWindow!.dispatchEvent(new Event('afterprint'))
+    expect(other).toHaveFocus()
+  } finally {
+    trigger.remove()
+    other.remove()
+  }
+})

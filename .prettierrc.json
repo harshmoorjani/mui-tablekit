@@ -1,0 +1,16 @@
+{
+  "printWidth": 120,
+  "semi": false,
+  "singleQuote": true,
+  "jsxSingleQuote": true,
+  "quoteProps": "consistent",
+  "trailingComma": "none",
+  "bracketSpacing": false,
+  "bracketSameLine": true,
+  "arrowParens": "avoid",
+  "useTabs": false,
+  "tabWidth": 2,
+  "htmlWhitespaceSensitivity": "ignore",
+  "endOfLine": "lf",
+  "plugins": ["prettier-plugin-minimal-parens"]
+}

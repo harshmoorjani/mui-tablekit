@@ -1,11 +1,11 @@
-import { defineConfig } from 'vitest/config';
+import {defineConfig} from 'vitest/config'
 
 export default defineConfig({
   base: './',
   build: {
     outDir: 'docs',
     // The demo is entirely client-side; the published tsc output keeps directives.
-    rolldownOptions: { checks: { moduleLevelDirective: false } },
+    rolldownOptions: {checks: {moduleLevelDirective: false}}
   },
-  test: { environment: 'jsdom', setupFiles: ['tests/setup.ts'] },
-});
+  test: {environment: 'jsdom', setupFiles: ['tests/setup.ts']}
+})

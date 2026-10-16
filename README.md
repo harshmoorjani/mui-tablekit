@@ -30,26 +30,21 @@ React 19.3.1+, MUI 9.5+, Emotion React 11.5+, and Emotion Styled 11.3+ are peer 
 After publication, the import will be `mui-tablekit`. For local testing, run `npm pack` here and install the generated tarball in another project.
 
 ```tsx
-import { DataTable, type Column } from 'mui-tablekit';
+import {DataTable, type Column} from 'mui-tablekit'
 
-type Person = { id: string; name: string; age: number };
+type Person = {id: string; name: string; age: number}
 
 const columns: Column<Person>[] = [
-  { id: 'name', header: 'Name', value: row => row.name, filterable: true },
-  { id: 'age', header: 'Age', value: row => row.age, align: 'right' },
-];
+  {id: 'name', header: 'Name', value: row => row.name, filterable: true},
+  {id: 'age', header: 'Age', value: row => row.age, align: 'right'}
+]
 
 const people: Person[] = [
-  { id: 'ada', name: 'Ada', age: 36 },
-  { id: 'ben', name: 'Ben', age: 28 },
-];
+  {id: 'ada', name: 'Ada', age: 36},
+  {id: 'ben', name: 'Ben', age: 28}
+]
 
-<DataTable
-  caption="People"
-  rows={people}
-  columns={columns}
-  getRowId={row => row.id}
-/>;
+;<DataTable caption='People' rows={people} columns={columns} getRowId={row => row.id} />
 ```
 
 Use `render(value, row)` on a column for custom cells. Values are strings, numbers, booleans, valid `Date` objects, nullish values, or readonly arrays of these scalar values. Arrays display as comma-separated text and participate in search. Default array sorting compares that text; supply `compare(a, b)` for another ordering. Plain cell text is escaped by React. Supply `filter(row, query)` for a custom column predicate. `sortable: false` disables sorting; `searchable: false` excludes a column from global search. Sorting cycles ascending, descending, unsorted.
@@ -68,17 +63,21 @@ Use `renderFilter({ id, label, value, onChange })` for a custom control. It enab
 
 ```tsx
 const nameColumn: Column<Person> = {
-  id: 'name', header: 'Name', value: row => row.name,
+  id: 'name',
+  header: 'Name',
+  value: row => row.name,
   filter: (row, query) => typeof query === 'string' && row.name.startsWith(query),
-  filterOptions: [{ value: 'A', label: 'Starts with A' }],
-  renderFilter: ({ id, value, onChange }) => (
-    <label htmlFor={id}>
-      <input id={id} type="checkbox" checked={value === 'A'}
-        onChange={event => onChange(event.target.checked ? 'A' : '')} />
-      Names starting with A
-    </label>
-  ),
-};
+  filterOptions: [{value: 'A', label: 'Starts with A'}],
+  renderFilter: ({id, value, onChange}) => <label htmlFor={id}>
+    <input
+      id={id}
+      type='checkbox'
+      checked={value === 'A'}
+      onChange={event => onChange(event.target.checked ? 'A' : '')}
+    />
+    Names starting with A
+  </label>
+}
 ```
 
 Active filters produce removable chips, including on hidden columns. Multiselect values and range bounds have separate chips. Clicking a chip or pressing Enter, Backspace, or Delete removes that criterion and resets the page. `filterOptions` supplies display labels for values, including custom widgets; empty multiselect values use the localized `emptyFilterValue` label. Empty strings, empty arrays, and ranges with both bounds empty produce no chips.
@@ -108,19 +107,19 @@ Server mode always renders only supplied rows. These switches hide controls; the
 Uncontrolled tables accept `defaultState` and optionally report changes through `onStateChange`. Controlled tables accept the complete `state` and `onStateChange`; the parent must apply changes. Keep the ownership mode fixed during a table's lifetime.
 
 ```tsx
-import { useState } from 'react';
-import { createTableState, DataTable } from 'mui-tablekit';
+import {useState} from 'react'
+import {createTableState, DataTable} from 'mui-tablekit'
 
-const [state, setState] = useState(() => createTableState({ pageSize: 25 }));
+const [state, setState] = useState(() => createTableState({pageSize: 25}))
 
-<DataTable
-  caption="People"
+;<DataTable
+  caption='People'
   rows={people}
   columns={columns}
   getRowId={row => row.id}
   state={state}
   onStateChange={setState}
-/>;
+/>
 ```
 
 State has `search`, `filters` (column ID to `FilterValue`), `sort` (`{ columnId, direction }` or `null`), zero-based `page`, positive `pageSize`, `selectedIds`, `expandedIds`, `hiddenColumnIds`, `columnOrder`, and `columnWidths`. Use `createTableState` to supply defaults. Search, filter, sort, and page-size changes reset the page. When client rows shrink, the displayed page is clamped; the next interaction reports that page. No state is persisted automatically.
@@ -137,13 +136,13 @@ Set `selectable` to show checkboxes. `getRowId` must return a unique, nonempty s
 
 ```tsx
 <DataTable
-  caption="People"
+  caption='People'
   rows={people}
   columns={columns}
   getRowId={row => row.id}
   selectable
   renderBulkActions={ids => <button onClick={() => archive(ids)}>Archive</button>}
-/>;
+/>
 ```
 
 The header checkbox selects or deselects the current page. Other pages' selections remain. Selection also survives search, filtering, sorting, and refreshed rows. Bulk actions receive IDs, including selected IDs absent from the current dataset. The caller must validate those IDs and clear selection after deletion, a dataset switch, or an action where retaining it would be misleading. The table never executes a bulk action automatically.
@@ -177,28 +176,40 @@ Column `hideable: false` locks visibility; `draggable: false` prevents moving th
 ### Nested rows and columns
 
 ```tsx
-import type { ColumnDefinition } from 'mui-tablekit';
+import type {ColumnDefinition} from 'mui-tablekit'
 
 type Report = {
-  id: string; name: string; actual: number; planned: number;
-  children?: Report[];
-};
+  id: string
+  name: string
+  actual: number
+  planned: number
+  children?: Report[]
+}
 const reportColumns: ColumnDefinition<Report>[] = [
-  { id: 'name', header: 'Department', value: row => row.name, sticky: 'left' },
+  {id: 'name', header: 'Department', value: row => row.name, sticky: 'left'},
   {
-    id: 'performance', header: 'Performance',
+    id: 'performance',
+    header: 'Performance',
     value: row => row.actual + row.planned,
     columns: [
-      { id: 'actual', header: 'Actual', value: row => row.actual },
-      { id: 'planned', header: 'Planned', value: row => row.planned },
-    ],
-  },
-];
+      {id: 'actual', header: 'Actual', value: row => row.actual},
+      {id: 'planned', header: 'Planned', value: row => row.planned}
+    ]
+  }
+]
 
-<DataTable caption="Report" rows={reportRows} columns={reportColumns}
-  getRowId={row => row.id} getSubRows={row => row.children}
-  defaultState={{ expandedColumnIds: ['performance'] }}
-  expandOnClick expandAll stickyHeader maxHeight={480} />;
+;<DataTable
+  caption='Report'
+  rows={reportRows}
+  columns={reportColumns}
+  getRowId={row => row.id}
+  getSubRows={row => row.children}
+  defaultState={{expandedColumnIds: ['performance']}}
+  expandOnClick
+  expandAll
+  stickyHeader
+  maxHeight={480}
+/>
 ```
 
 Pass only roots in `rows`; `getSubRows` returns their children. IDs must be unique throughout the tree. Sorting applies to siblings; pagination counts roots and keeps their expanded descendants together. Filtering keeps matching rows and their ancestors, automatically revealing matching paths while a filter is active. Clearing filters restores stored expansion. Parent values and aggregates are supplied by your accessors; the table does not recompute totals or cascade selection. `isRowExpandable` can prevent traversing a branch. In server mode `rowCount` counts remote roots, and all operations remain limited to supplied rows.
@@ -229,15 +240,15 @@ Set `mode="server"`, supply `rowCount`, and control the state. The table renders
 
 ```tsx
 <DataTable
-  caption="People"
-  mode="server"
+  caption='People'
+  mode='server'
   rows={response.rows}
   rowCount={response.total}
   columns={columns}
   getRowId={row => row.id}
   state={state}
   onStateChange={setState}
-/>;
+/>
 ```
 
 The caller owns fetching, loading/error UI, debouncing, cancellation, authorization, query validation, and out-of-range page recovery. Keep rows and total consistent with the controlled page. Use the `toolbar` prop for additional controls or request status. No networking code or credentials belong in this package.
@@ -265,24 +276,39 @@ The default toolbar places filters before search, inline selection actions immed
 Pass your own React component through `components.ToolbarButton` to replace individual action buttons. Its `action` distinguishes `search`, `filters`, `columns`, `csv`, and `print`; return different components for each if needed. `renderToolbar` replaces the entire layout and receives the working search, filters, columns, CSV, print, selection and custom-content nodes. `components.Toolbar` changes only the wrapper.
 
 ```tsx
-import { Box, Button, TablePagination } from '@mui/material';
-import type { TablePaginationProps } from '@mui/material/TablePagination';
-import type { ToolbarButtonProps } from 'mui-tablekit';
+import {Box, Button, TablePagination} from '@mui/material'
+import type {TablePaginationProps} from '@mui/material/TablePagination'
+import type {ToolbarButtonProps} from 'mui-tablekit'
 
-function MyAction({ label, active, expanded, onClick, children }: ToolbarButtonProps) {
-  return <Button size="small" onClick={onClick} aria-pressed={active}
-    aria-expanded={expanded} startIcon={children}>{label}</Button>;
+function MyAction({label, active, expanded, onClick, children}: ToolbarButtonProps) {
+  return <Button size='small' onClick={onClick} aria-pressed={active} aria-expanded={expanded} startIcon={children}>
+    {label}
+  </Button>
 }
 function MyFooter(props: TablePaginationProps) {
-  return <TablePagination {...props} sx={{ borderTop: 1, borderColor: 'divider' }} />;
+  return <TablePagination {...props} sx={{borderTop: 1, borderColor: 'divider'}} />
 }
 
-<DataTable caption="People" rows={people} columns={columns} getRowId={row => row.id}
-  columnControls csvFileName="people.csv" printable
-  components={{ ToolbarButton: MyAction, Pagination: MyFooter }}
-  renderToolbar={({ search, filters, columns, csv, print, selection, custom }) => <>
-    {search}<Box sx={{ flexGrow: 1 }} />{custom}{columns}{filters}{csv}{print}{selection}
-  </>} />;
+;<DataTable
+  caption='People'
+  rows={people}
+  columns={columns}
+  getRowId={row => row.id}
+  columnControls
+  csvFileName='people.csv'
+  printable
+  components={{ToolbarButton: MyAction, Pagination: MyFooter}}
+  renderToolbar={({search, filters, columns, csv, print, selection, custom}) => <>
+    {search}
+    <Box sx={{flexGrow: 1}} />
+    {custom}
+    {columns}
+    {filters}
+    {csv}
+    {print}
+    {selection}
+  </>}
+/>
 ```
 
 The pagination slot receives standard MUI `TablePaginationProps`; it can render your own footer code instead of delegating to MUI. Search uses `renderSearch`, each column's filter uses `renderFilter`, and chips use `components.FilterChip`. A fully custom toolbar can also replace any supplied node with application-owned controls using the controlled state API.
@@ -295,17 +321,17 @@ The pagination slot receives standard MUI `TablePaginationProps`; it can render 
 
 Scope reference: [mui-datatables documentation](https://github.com/gregnb/mui-datatables#readme). No upstream implementation code was copied.
 
-| Feature | Current implementation |
-| --- | --- |
-| Search, sort, filters, pagination | Client operations and controlled server state |
-| Selection and bulk actions | Stable IDs, single/multiple/conditional/click selection, filtered scope, custom actions |
-| Custom rendering and controls | Cells, rows, headers, summary, widgets, component replacements, event hooks |
-| Responsive layout and localization | Scroll/stacked/simple views, sticky headers/columns, height limit, labels |
-| Expandable rows and columns | Nested rows, grouped/aggregate columns, conditional details, expand-all |
-| Column visibility, ordering, resizing | Exclusions, optional panel, drag/pointer/keyboard handles, controlled state |
-| CSV export and printing | Filtered results/loaded page; CSV delimiter, formatting, column exclusions |
-| Advanced filters | Arrays with any/all matching, inferred choices, custom controls, chips/reset, Apply/Cancel dialog |
-| Accessibility | Semantic markup, interaction tests, automated browser audits; manual checks pending |
+| Feature                               | Current implementation                                                                            |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Search, sort, filters, pagination     | Client operations and controlled server state                                                     |
+| Selection and bulk actions            | Stable IDs, single/multiple/conditional/click selection, filtered scope, custom actions           |
+| Custom rendering and controls         | Cells, rows, headers, summary, widgets, component replacements, event hooks                       |
+| Responsive layout and localization    | Scroll/stacked/simple views, sticky headers/columns, height limit, labels                         |
+| Expandable rows and columns           | Nested rows, grouped/aggregate columns, conditional details, expand-all                           |
+| Column visibility, ordering, resizing | Exclusions, optional panel, drag/pointer/keyboard handles, controlled state                       |
+| CSV export and printing               | Filtered results/loaded page; CSV delimiter, formatting, column exclusions                        |
+| Advanced filters                      | Arrays with any/all matching, inferred choices, custom controls, chips/reset, Apply/Cancel dialog |
+| Accessibility                         | Semantic markup, interaction tests, automated browser audits; manual checks pending               |
 
 The previously identified feature gaps are implemented. This remains an independent API, not a drop-in mui-datatables replacement or a claim of exhaustive parity with every upstream option. Row actions are ordinary custom-rendered columns; remote queries use the controlled-state adapter pattern above. Server selection, expansion, CSV, and print always operate on supplied rows; remote “all results” actions require an application/backend contract.
 
