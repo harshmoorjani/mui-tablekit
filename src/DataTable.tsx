@@ -46,7 +46,7 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
     throw new Error('MUI Tablekit: getRowId must return a unique, nonempty string for every row.');
   }
   if (!columns.length || new Set(columns.map(column => column.id)).size !== columns.length ||
-      columns.some(column => !column.id)) {
+      columns.some(column => typeof column.id !== 'string' || !column.id)) {
     throw new Error('MUI Tablekit: provide columns with unique, nonempty ids.');
   }
   const pageIds = view.rows.map(getRowId);
@@ -132,10 +132,10 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
             </TableRow>
           </TableHead>
           <TableBody>
-            {view.rows.map(row => {
+            {view.rows.map((row, index) => {
               const id = getRowId(row);
               const expanded = state.expandedIds.includes(id);
-              const detailsId = `${tableId}-${encodeURIComponent(id)}`;
+              const detailsId = `${tableId}-${index}`;
               return (
                 <Fragment key={id}>
                   <TableRow selected={selectable && selected.has(id)}>

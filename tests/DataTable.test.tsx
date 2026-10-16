@@ -287,6 +287,15 @@ it('reuses the row model for selection and export, and refreshes it when data ch
   } finally { csv.mockRestore(); }
 });
 
+it('supports arbitrary string row IDs in accessible expansion references', async () => {
+  const user = userEvent.setup();
+  render(<DataTable {...base} rows={[{ ...rows[0]!, id: '\ud800' }, { ...rows[1]!, id: 'row with spaces' }]}
+    renderExpanded={row => <p>Details for {row.name}</p>} />);
+  await user.click(screen.getAllByRole('button', { name: /Expand row/ })[0]!);
+  const toggle = screen.getByRole('button', { name: /Collapse row/ });
+  expect(document.getElementById(toggle.getAttribute('aria-controls')!)).toHaveTextContent('Details for Ada');
+});
+
 // Server operations require a caller-owned query and total count.
 // @ts-expect-error server mode requires state and onStateChange
 const invalidServer: DataTableProps<Person> = { ...base, mode: 'server', rowCount: 100 };
