@@ -336,6 +336,12 @@ it('uses an accessible custom widget on a hidden column with the existing filter
   expect(change).toHaveBeenLastCalledWith(expect.objectContaining({ page: 0, filters: { team: 'true' }, selectedIds: ['a'] }));
   await user.click(widget);
   expect(screen.getByText('Ada')).toBeVisible();
+  await user.click(widget);
+  await user.click(screen.getByRole('button', { name: 'Remove Team: true' }));
+  expect(widget).not.toBeChecked();
+  await user.click(widget);
+  await user.click(screen.getByRole('button', { name: 'Reset filters' }));
+  expect(widget).not.toBeChecked();
 });
 
 it('keeps custom widgets controlled in server mode and allows their control to be suppressed', async () => {
@@ -361,6 +367,74 @@ it('keeps custom widgets controlled in server mode and allows their control to b
   expect(predicate).not.toHaveBeenCalled();
   rerender(<DataTable {...props} state={next} columns={[{ ...custom, filterable: false }]} />);
   expect(screen.queryByRole('checkbox', { name: 'Filter Team' })).not.toBeInTheDocument();
+});
+
+it('removes individual values and range bounds, then resets filters without changing other state', async () => {
+  const user = userEvent.setup();
+  const change = vi.fn();
+  const initial = createTableState({ search: 'Ada', page: 2, pageSize: 1,
+    filters: { name: 'A', team: ['Design', 'Engineering'], age: { min: '30', max: '40' } },
+    sort: { columnId: 'age', direction: 'desc' }, selectedIds: ['a'], expandedIds: ['a'],
+    hiddenColumnIds: ['team'], columnOrder: ['age', 'name', 'team'], columnWidths: { age: 280 } });
+  render(<DataTable {...base} selectable defaultState={initial} onStateChange={change}
+    renderExpanded={row => <p>Details for {row.name}</p>} columns={[
+      columns[0]!, { ...columns[1]!, filterOptions: [{ value: 'Engineering', label: 'Engineering team' }] }, columns[2]!,
+    ]} />);
+  await user.click(screen.getByRole('button', { name: 'Remove Team: Engineering team' }));
+  expect(change).toHaveBeenCalledTimes(1);
+  expect(change).toHaveBeenLastCalledWith(expect.objectContaining({ filters: {
+    name: 'A', team: ['Design'], age: { min: '30', max: '40' },
+  } }));
+  screen.getByRole('button', { name: 'Remove Age from: 30' }).focus();
+  await user.keyboard('{Delete}');
+  expect(screen.queryByRole('button', { name: 'Remove Age from: 30' })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Remove Age to: 40' })).toBeVisible();
+  expect(change).toHaveBeenLastCalledWith(expect.objectContaining({ filters: {
+    name: 'A', team: ['Design'], age: { min: '', max: '40' },
+  } }));
+  await user.click(screen.getByRole('button', { name: 'Reset filters' }));
+  expect(change).toHaveBeenCalledTimes(3);
+  expect(change).toHaveBeenLastCalledWith({ ...initial, page: 0, filters: {} });
+  expect(screen.queryByRole('button', { name: 'Reset filters' })).not.toBeInTheDocument();
+  expect(screen.getByRole('searchbox')).toHaveValue('Ada');
+  expect(screen.getByRole('checkbox', { name: 'Select row a' })).toBeChecked();
+  expect(screen.getByText('Details for Ada')).toBeVisible();
+});
+
+it('omits inactive chips and localizes empty-value chips and removal actions', async () => {
+  const user = userEvent.setup();
+  const change = vi.fn();
+  const labels = { resetFilters: 'Limpiar filtros', emptyFilterValue: 'Vacío',
+    filterChip: (header: string, value: string) => `${header} = ${value}`, removeFilter: (label: string) => `Quitar ${label}` };
+  const props = { ...base, labels, onStateChange: change };
+  const { rerender } = render(<DataTable {...props} state={createTableState({
+    filters: { name: '', team: [], age: { min: '', max: '' } },
+  })} />);
+  expect(screen.queryByRole('button', { name: 'Limpiar filtros' })).not.toBeInTheDocument();
+  rerender(<DataTable {...props} state={createTableState({ filters: { team: [''] } })} />);
+  const chip = screen.getByRole('button', { name: 'Quitar Team = Vacío' });
+  expect(chip).toBeVisible();
+  chip.focus();
+  await user.keyboard('{Enter}');
+  expect(change).toHaveBeenCalledOnce();
+  expect(change).toHaveBeenCalledWith(expect.objectContaining({ page: 0, filters: { team: [] } }));
+  expect(chip).toBeVisible();
+});
+
+it('clears server criteria through controlled state without filtering the supplied rows', async () => {
+  const user = userEvent.setup();
+  const change = vi.fn();
+  const initial = createTableState({ page: 2, filters: { team: 'Engineering' }, selectedIds: ['a'] });
+  const props = { ...base, mode: 'server' as const, rowCount: 100, state: initial, onStateChange: change };
+  const { rerender } = render(<DataTable {...props} />);
+  await user.click(screen.getByRole('button', { name: 'Remove Team: Engineering' }));
+  expect(change).toHaveBeenLastCalledWith({ ...initial, page: 0, filters: { team: '' } });
+  expect(screen.getByRole('button', { name: 'Remove Team: Engineering' })).toBeVisible();
+  expect(screen.getByText('Ada')).toBeVisible();
+  await user.click(screen.getByRole('button', { name: 'Reset filters' }));
+  expect(change).toHaveBeenLastCalledWith({ ...initial, page: 0, filters: {} });
+  rerender(<DataTable {...props} state={change.mock.calls.at(-1)![0] as TableState} />);
+  expect(screen.queryByRole('button', { name: 'Reset filters' })).not.toBeInTheDocument();
 });
 
 // Server operations require a caller-owned query and total count.

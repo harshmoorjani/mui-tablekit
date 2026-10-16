@@ -50,6 +50,10 @@ export interface TableLabels {
   filterMin: (header: string) => string;
   filterMax: (header: string) => string;
   clearFilter: string;
+  resetFilters: string;
+  emptyFilterValue: string;
+  filterChip: (header: string, value: string) => string;
+  removeFilter: (label: string) => string;
   sort: (header: string) => string;
   rowsPerPage: string;
   previousPage: string;

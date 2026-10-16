@@ -9,14 +9,17 @@ import {
 import { cellText, columnWidth, createTableState, getOrderedColumns, getView } from './model.js';
 import { ColumnControls } from './ColumnControls.js';
 import { ColumnFilter } from './ColumnFilter.js';
+import { FilterChips } from './FilterChips.js';
 import { downloadCsv, printRows } from './output.js';
-import type { DataTableProps, TableLabels, TableState } from './types.js';
+import type { DataTableProps, FilterValue, TableLabels, TableState } from './types.js';
 
 const defaultLabels: TableLabels = {
   search: 'Search', empty: 'No matching rows', selectPage: 'Select this page',
   selectRow: id => `Select row ${id}`, selected: count => `${count} selected`,
   clearSelection: 'Clear selection', filter: header => `Filter ${header}`,
   filterMin: header => `${header} from`, filterMax: header => `${header} to`, clearFilter: 'Any',
+  resetFilters: 'Reset filters', emptyFilterValue: '(empty)',
+  filterChip: (header, value) => `${header}: ${value}`, removeFilter: label => `Remove ${label}`,
   sort: header => `Sort by ${header}`, rowsPerPage: 'Rows per page:',
   previousPage: 'Previous page', nextPage: 'Next page',
   firstPage: 'First page', lastPage: 'Last page',
@@ -72,6 +75,7 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
     rowIds.forEach(id => checked ? next.add(id) : next.delete(id));
     update({ selectedIds: [...next] });
   };
+  const changeFilter = (id: string, value: FilterValue) => update({ page: 0, filters: { ...state.filters, [id]: value } });
 
   return (
     <Paper variant="outlined">
@@ -98,9 +102,11 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
         {filterColumns.map(column => (
           <ColumnFilter key={column.id} column={column} labels={labels}
             value={Object.hasOwn(state.filters, column.id) ? state.filters[column.id] : undefined}
-            onChange={value => update({ page: 0, filters: { ...state.filters, [column.id]: value } })} />
+            onChange={value => changeFilter(column.id, value)} />
         ))}
       </Stack>}
+      <FilterChips columns={orderedColumns} filters={state.filters} labels={labels} onChange={changeFilter}
+        onReset={() => update({ page: 0, filters: {} })} />
       <TableContainer>
         <Table size="small" sx={sized ? { tableLayout: 'fixed', width: tableWidth, minWidth: '100%', '& td, & th': { overflowWrap: 'anywhere' } } : undefined}>
           <caption style={{ captionSide: 'top', textAlign: 'start', padding: '0 16px 12px' }}>{caption}</caption>
