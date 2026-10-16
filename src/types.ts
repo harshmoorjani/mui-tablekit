@@ -172,7 +172,7 @@ interface BaseProps<Row> {
   onAction?: (action: TableAction, state: TableState) => void;
   onRowClick?: (row: Row, context: RowContext) => void;
   onCellClick?: (row: Row, column: Column<Row>, context: RowContext) => void;
-  onRowsDelete?: (ids: readonly string[], rows: readonly Row[]) => void | false | Promise<void | false>;
+  onRowsDelete?: (ids: readonly string[], rows: readonly Row[]) => void | boolean | Promise<void | boolean>;
   selectable?: boolean | 'single';
   isRowSelectable?: (row: Row) => boolean;
   selectOnClick?: boolean;

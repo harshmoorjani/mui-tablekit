@@ -4,7 +4,7 @@ import { userEvent } from '@testing-library/user-event';
 import { afterEach, expect, it, vi } from 'vitest';
 import { createTableState, DataTable } from '../src/index.js';
 import { Checkbox, Chip } from '@mui/material';
-import type { Column, ColumnDefinition, TableState } from '../src/index.js';
+import type { Column, ColumnDefinition, DataTableProps, TableState } from '../src/index.js';
 import * as output from '../src/output.js';
 
 type Row = { id: string; name: string; actual: number; planned: number; children?: Row[] };
@@ -17,7 +17,12 @@ const columns: ColumnDefinition<Row>[] = [name, { id: 'volume', header: 'Volume'
   { id: 'planned', header: 'Planned', value: row => row.planned, align: 'right' },
 ] }];
 const base = { rows, columns, getRowId: (row: Row) => row.id, caption: 'Report' };
+const asyncVeto: DataTableProps<Row>['onRowsDelete'] = async () => false;
 afterEach(() => { vi.restoreAllMocks(); vi.useRealTimers(); localStorage.clear(); });
+
+it('accepts a plain async deletion veto without literal assertions', async () => {
+  await expect(asyncVeto!([], [])).resolves.toBe(false);
+});
 
 it('expands nested rows with sibling sorting, root pagination, descendant filtering and stable selection', async () => {
   const user = userEvent.setup();
