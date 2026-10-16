@@ -23,7 +23,18 @@ export function columnWidth(widths: Record<string, number>, id: string) {
 }
 
 export function cellText(value: CellValue): string {
+  if (Array.isArray(value)) return value.map(cellText).join(', ');
   return value instanceof Date ? value.toISOString() : String(value ?? '');
+}
+
+export function inferFilterOptions<Row>(column: Column<Row>, rows: readonly Row[]) {
+  if (column.filterOptions) return column.filterOptions;
+  const values = new Set<string>();
+  rows.forEach(row => {
+    const value = column.value(row);
+    (Array.isArray(value) ? value : [value]).forEach(entry => { if (entry != null) values.add(cellText(entry)); });
+  });
+  return [...values].sort(collator.compare).map(value => ({ value, label: value }));
 }
 
 function compareValues(a: CellValue, b: CellValue): number {
@@ -48,9 +59,13 @@ function matchesFilter<Row>(column: Column<Row>, row: Row, filter: FilterValue |
       (typeof filter === 'object' && !Array.isArray(filter) && !filter.min && !filter.max)) return true;
   if (column.filter) return column.filter(row, filter);
   const value = column.value(row);
-  if (Array.isArray(filter)) return filter.includes(cellText(value));
+  if (Array.isArray(filter)) {
+    const values = (Array.isArray(value) ? value : [value]).map(cellText);
+    return column.filterMatch === 'all' ? filter.every(entry => values.includes(entry)) : filter.some(entry => values.includes(entry));
+  }
   if (typeof filter === 'string') return column.filterType === 'select'
-    ? cellText(value) === filter : cellText(value).toLocaleLowerCase().includes(filter.toLocaleLowerCase());
+    ? (Array.isArray(value) ? value : [value]).some(entry => cellText(entry) === filter)
+    : cellText(value).toLocaleLowerCase().includes(filter.toLocaleLowerCase());
   if (value == null || (typeof value === 'string' && value.trim() === '')) return false;
   const dates = column.filterType === 'dateRange';
   const number = dates ? dateNumber(value)

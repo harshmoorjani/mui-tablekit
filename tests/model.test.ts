@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { columnWidth, createTableState, getOrderedColumns, getView } from '../src/model.js';
+import { cellText, columnWidth, createTableState, getOrderedColumns, getView, inferFilterOptions } from '../src/model.js';
 import type { Column, FilterValue } from '../src/index.js';
 
 const rows = [
@@ -12,6 +12,19 @@ const columns: Column<(typeof rows)[number]>[] = [
   { id: 'team', header: 'Team', value: row => row.team },
   { id: 'age', header: 'Age', value: row => row.age },
 ];
+
+it('filters array members with any/all semantics and infers stable unique choices', () => {
+  const data = [{ tags: ['red', 'blue', 'red'] }, { tags: ['blue'] }, { tags: [] }];
+  const column: Column<(typeof data)[number]> = { id: 'tags', header: 'Tags', value: row => row.tags, filterType: 'multiselect' };
+  const state = createTableState({ filters: { tags: ['red', 'blue'] } });
+  expect(getView(data, [column], state).rows).toEqual(data.slice(0, 2));
+  expect(getView(data, [{ ...column, filterMatch: 'all' }], state).rows).toEqual(data.slice(0, 1));
+  expect(getView(data, [{ ...column, filterType: 'select' }], { ...state, filters: { tags: 'blue' } }).count).toBe(2);
+  expect(getView(data, [column], { ...state, search: 'blue', filters: {} }).count).toBe(2);
+  expect(inferFilterOptions(column, data)).toEqual([{ value: 'blue', label: 'blue' }, { value: 'red', label: 'red' }]);
+  expect(inferFilterOptions({ ...column, filterOptions: [] }, data)).toEqual([]);
+  expect(cellText(['x', 2, false, null])).toBe('x, 2, false, ');
+});
 
 describe('client row model', () => {
   it('searches and filters before sorting and paging without mutating input', () => {

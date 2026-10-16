@@ -6,7 +6,7 @@ import {
   TableContainer, TableHead, TablePagination, TableRow, TableSortLabel,
   TextField, Typography,
 } from '@mui/material';
-import { cellText, columnWidth, createTableState, getOrderedColumns, getView } from './model.js';
+import { cellText, columnWidth, createTableState, getOrderedColumns, getView, inferFilterOptions } from './model.js';
 import { ColumnControls } from './ColumnControls.js';
 import { ColumnFilter } from './ColumnFilter.js';
 import { FilterChips } from './FilterChips.js';
@@ -61,9 +61,12 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
     throw new Error('MUI Tablekit: provide columns with unique, nonempty ids.');
   }
   const pageIds = view.rows.map(getRowId);
-  const orderedColumns = getOrderedColumns(columns, state.columnOrder);
+  const resolvedColumns = useMemo(() => columns.map(column => column.filterType === 'select' || column.filterType === 'multiselect'
+    ? { ...column, filterOptions: inferFilterOptions(column, rows) } : column), [columns, rows]);
+  const orderedColumns = getOrderedColumns(resolvedColumns, state.columnOrder);
   const filterColumns = orderedColumns.filter(column => column.filterable ?? Boolean(column.filterType || column.renderFilter));
-  const visibleColumns = orderedColumns.filter(column => !state.hiddenColumnIds.includes(column.id));
+  const layoutColumns = orderedColumns.filter(column => !column.excluded);
+  const visibleColumns = layoutColumns.filter(column => !state.hiddenColumnIds.includes(column.id));
   if (!visibleColumns.length) throw new Error('MUI Tablekit: at least one column must be visible.');
   const sized = columnControls || Object.keys(state.columnWidths).length > 0;
   const utilityColumns = Number(selectable) + Number(Boolean(renderExpanded));
@@ -103,7 +106,7 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
           </>
         )}
       </Stack>}
-      {columnControls && <ColumnControls columns={orderedColumns} state={state} labels={labels} update={update} />}
+      {columnControls && <ColumnControls columns={layoutColumns} state={state} labels={labels} update={update} />}
       {filterColumns.length > 0 && <Stack direction="row" useFlexGap sx={{ px: 2, pb: 2, gap: 2, flexWrap: 'wrap' }}>
         {filterColumns.map(column => (
           <ColumnFilter key={column.id} column={column} labels={labels}

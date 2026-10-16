@@ -23,6 +23,20 @@ const names = () => within(screen.getByRole('table', { name: 'People' }))
   .getAllByRole('row').slice(1).map(row => within(row).getAllByRole('cell')[0]?.textContent);
 
 describe('DataTable', () => {
+  it('infers choices from all supplied rows and keeps excluded columns out of layout and output', async () => {
+    const user = userEvent.setup();
+    const download = vi.spyOn(output, 'downloadCsv').mockImplementation(() => {});
+    render(<DataTable {...base} columns={[{ ...columns[0]!, excluded: true },
+      { ...columns[1]!, filterType: 'select' }, columns[2]!]} columnControls csvFileName="test.csv" defaultState={{ pageSize: 1 }} />);
+    expect(screen.queryByRole('button', { name: 'Sort by Name' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: 'Show Name' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('combobox', { name: 'Filter Team' }));
+    await user.click(screen.getByRole('option', { name: 'Engineering' }));
+    expect(screen.getByText('1–1 of 2')).toBeVisible();
+    await user.click(screen.getByRole('button', { name: 'Download CSV' }));
+    expect(download.mock.calls[0]?.[1].map(column => column.id)).toEqual(['team', 'age']);
+    download.mockRestore();
+  });
   it('combines search and column filters and resets pagination', async () => {
     const user = userEvent.setup();
     render(<DataTable {...base} defaultState={{ pageSize: 1, page: 2 }} />);

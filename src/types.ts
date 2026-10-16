@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 
-export type CellValue = string | number | boolean | Date | null | undefined;
+export type CellScalar = string | number | boolean | Date | null | undefined;
+export type CellValue = CellScalar | readonly CellScalar[];
 export type FilterValue = string | string[] | { min: string; max: string };
 
 export interface FilterControlProps {
@@ -20,9 +21,11 @@ export interface Column<Row> {
   filterable?: boolean;
   filterType?: 'text' | 'select' | 'multiselect' | 'numberRange' | 'dateRange';
   filterOptions?: readonly { value: string; label: string }[];
+  filterMatch?: 'any' | 'all';
   filter?: (row: Row, query: FilterValue) => boolean;
   renderFilter?: (props: FilterControlProps) => ReactNode;
   searchable?: boolean;
+  excluded?: boolean;
   align?: 'left' | 'center' | 'right';
 }
 
