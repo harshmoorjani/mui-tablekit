@@ -1,12 +1,13 @@
 import { useId } from 'react';
 import { Checkbox, FormControl, FormControlLabel, FormGroup, FormLabel, InputLabel, MenuItem, Select, Stack, TextField } from '@mui/material';
-import type { Column, FilterValue, TableLabels } from './types.js';
+import type { Column, FilterValue, TableComponents, TableLabels } from './types.js';
 
-export function ColumnFilter<Row>({ column, value, labels, onChange }: {
+export function ColumnFilter<Row>({ column, value, labels, onChange, checkbox: Choice = Checkbox }: {
   column: Column<Row>;
   value: FilterValue | undefined;
   labels: TableLabels;
   onChange: (value: FilterValue) => void;
+  checkbox?: TableComponents['Checkbox'];
 }) {
   const id = useId();
   const label = labels.filter(column.header);
@@ -14,7 +15,7 @@ export function ColumnFilter<Row>({ column, value, labels, onChange }: {
   if (column.filterType === 'checkbox') return <FormControl component="fieldset">
     <FormLabel component="legend">{label}</FormLabel>
     <FormGroup>{column.filterOptions?.map(option => <FormControlLabel key={option.value} label={option.label || labels.emptyFilterValue}
-      control={<Checkbox checked={Array.isArray(value) && value.includes(option.value)} onChange={(_, checked) => {
+      control={<Choice checked={Array.isArray(value) && value.includes(option.value)} onChange={(_, checked) => {
         const previous = Array.isArray(value) ? value : [];
         onChange(checked ? [...previous, option.value] : previous.filter(entry => entry !== option.value));
       }} />} />)}</FormGroup>

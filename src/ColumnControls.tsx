@@ -1,12 +1,13 @@
 import { Box, Button, Checkbox, FormControlLabel, Stack, TextField } from '@mui/material';
 import { columnWidth } from './model.js';
-import type { Column, TableLabels, TableState } from './types.js';
+import type { Column, TableComponents, TableLabels, TableState } from './types.js';
 
-export function ColumnControls<Row>({ columns, state, labels, update }: {
+export function ColumnControls<Row>({ columns, state, labels, update, checkbox: Choice = Checkbox }: {
   columns: readonly Column<Row>[];
   state: TableState;
   labels: TableLabels;
   update: (patch: Partial<TableState>) => void;
+  checkbox?: TableComponents['Checkbox'];
 }) {
   const visible = columns.filter(column => column.hideable === false || !state.hiddenColumnIds.includes(column.id)).length;
   const move = (index: number, offset: number) => {
@@ -23,7 +24,7 @@ export function ColumnControls<Row>({ columns, state, labels, update }: {
           return (
             <Stack key={column.id} direction="row" useFlexGap sx={{ gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
               <FormControlLabel label={labels.showColumn(column.header)}
-                control={<Checkbox checked={!hidden} disabled={column.hideable === false || (!hidden && visible === 1)}
+                control={<Choice checked={!hidden} disabled={column.hideable === false || (!hidden && visible === 1)}
                   onChange={(_, checked) => update({ hiddenColumnIds: checked
                     ? state.hiddenColumnIds.filter(id => id !== column.id) : [...state.hiddenColumnIds, column.id] })} />}
               />

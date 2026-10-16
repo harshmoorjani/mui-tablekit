@@ -41,6 +41,16 @@ it('downloads a Blob and releases the temporary URL and link', () => {
   expect(revoke).toHaveBeenCalledWith('blob:test');
 });
 
+it('can cancel or replace CSV output before creating a download', () => {
+  const create = vi.fn(() => 'blob:custom');
+  vi.stubGlobal('URL', { createObjectURL: create, revokeObjectURL: vi.fn() });
+  vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+  downloadCsv('test.csv', columns, [{ value: 'x' }], { transform: () => false });
+  expect(create).not.toHaveBeenCalled();
+  downloadCsv('test.csv', columns, [{ value: 'x' }], { transform: csv => `Custom\r\n${csv}` });
+  expect(create).toHaveBeenCalledOnce();
+});
+
 it('prints a separate text-only document and cleans up after the dialog or timeout', () => {
   const append = document.body.append.bind(document.body);
   const print = vi.fn();
@@ -50,11 +60,12 @@ it('prints a separate text-only document and cleans up after the dialog or timeo
     vi.spyOn(frame.contentWindow!, 'print').mockImplementation(print);
     vi.spyOn(frame.contentWindow!, 'focus').mockImplementation(() => {});
   });
-  printRows('<People>', columns, [{ value: '<img src=x onerror=alert(1)>' }]);
+  printRows('<People>', [...columns, { ...columns[0]!, id: 'private', header: 'Do not print', printable: false }], [{ value: '<img src=x onerror=alert(1)>' }]);
   const frame = document.querySelector('iframe')!;
   expect(frame.contentDocument!.querySelector('caption')).toHaveTextContent('<People>');
   expect(frame.contentDocument!.querySelector('td')).toHaveTextContent('<img src=x onerror=alert(1)>');
   expect(frame.contentDocument!.querySelector('img')).toBeNull();
+  expect(frame.contentDocument!.body).not.toHaveTextContent('Do not print');
   expect(print).toHaveBeenCalledOnce();
   frame.contentWindow!.dispatchEvent(new Event('afterprint'));
   expect(document.querySelector('iframe')).toBeNull();

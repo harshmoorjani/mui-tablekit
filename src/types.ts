@@ -1,11 +1,15 @@
 import type { ComponentType, ElementType, ReactNode } from 'react';
 import type { TablePaginationProps } from '@mui/material/TablePagination';
 import type { TableCellProps } from '@mui/material/TableCell';
+import type { CheckboxProps } from '@mui/material/Checkbox';
+import type { ButtonProps } from '@mui/material/Button';
+import type { ChipProps } from '@mui/material/Chip';
 import type { SxProps, Theme } from '@mui/material/styles';
 
 export type CellScalar = string | number | boolean | Date | null | undefined;
 export type CellValue = CellScalar | readonly CellScalar[];
 export type FilterValue = string | string[] | { min: string; max: string };
+export type FilterCriterion = number | 'min' | 'max';
 
 export interface FilterControlProps {
   id: string;
@@ -29,6 +33,8 @@ export interface Column<Row> {
   filterMatch?: 'any' | 'all';
   filter?: (row: Row, query: FilterValue) => boolean;
   renderFilter?: (props: FilterControlProps) => ReactNode;
+  filterChipLabel?: (value: string, criterion: FilterCriterion) => string;
+  removeFilterValue?: (value: FilterValue, criterion: FilterCriterion) => FilterValue;
   searchable?: boolean;
   excluded?: boolean;
   hideable?: boolean;
@@ -57,7 +63,8 @@ export interface SearchControlProps {
   onChange: (value: string) => void;
 }
 
-export type TableAction = 'init' | 'search' | 'filter' | 'sort' | 'page' | 'pageSize' | 'selection' | 'expansion' | 'columns';
+export type TableAction = 'init' | 'search' | 'filter' | 'sort' | 'page' | 'pageSize' | 'selection' | 'expansion' | 'columns'
+  | 'searchOpen' | 'searchClose' | 'filterOpen' | 'filterClose' | 'filterConfirm' | 'filterChipClose' | 'filterReset';
 
 export interface RowContext {
   id: string;
@@ -73,6 +80,10 @@ export interface TableComponents {
   Row?: ElementType;
   Cell?: TableCellProps['component'];
   Pagination?: ComponentType<TablePaginationProps>;
+  Checkbox?: ComponentType<CheckboxProps>;
+  ExpandButton?: ComponentType<ButtonProps>;
+  FilterChip?: ComponentType<ChipProps>;
+  Toolbar?: ElementType;
 }
 
 export interface TableState {

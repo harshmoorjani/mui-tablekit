@@ -116,6 +116,16 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
   const utilityColumns = Number(showSelection) + Number(showExpansion);
   const pinUtilities = Boolean(props.fixedSelection && showSelection);
   const pinned = pinUtilities || visibleColumns.some(column => column.sticky);
+  const container = useRef<HTMLDivElement>(null);
+  const [containerWidth, setContainerWidth] = useState(Infinity);
+  useLayoutEffect(() => {
+    if (!container.current || !pinned) return;
+    const measure = () => { const width = container.current!.clientWidth; if (width > 0) setContainerWidth(width); };
+    measure();
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : undefined;
+    observer?.observe(container.current); window.addEventListener('resize', measure);
+    return () => { observer?.disconnect(); window.removeEventListener('resize', measure); };
+  }, [pinned]);
   const sized = pinned || columnControls || props.columnResizing || Object.keys(state.columnWidths).length > 0;
   const tableWidth = visibleColumns.reduce((width, column) => width + columnWidth(state.columnWidths, column.id), utilityColumns * 64);
   const offsets = new Map<string, number>();
@@ -124,7 +134,7 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
   visibleColumns.forEach(column => { if (column.sticky === 'left') { offsets.set(column.id, left); left += columnWidth(state.columnWidths, column.id); } });
   [...visibleColumns].reverse().forEach(column => { if (column.sticky === 'right') { offsets.set(column.id, right); right += columnWidth(state.columnWidths, column.id); } });
   const stickyStyle = (column: Column<Row> | undefined, header: boolean, top = 0, selection = false, offset?: number): SxProps<Theme> => {
-    const side = offset !== undefined ? 'left' : column?.sticky;
+    const side = left + right + 80 > containerWidth ? undefined : offset !== undefined ? 'left' : column?.sticky;
     return { ...(side ? { position: 'sticky', [side]: offset ?? offsets.get(column!.id), zIndex: header ? 5 : 2,
       bgcolor: 'background.paper', backgroundImage: selection ? `linear-gradient(${alpha(theme.palette.primary.main, theme.palette.action.selectedOpacity)}, ${alpha(theme.palette.primary.main, theme.palette.action.selectedOpacity)})` : 'none' } : {}),
       ...(header && props.stickyHeader ? { position: 'sticky', top, zIndex: side ? 5 : 3, bgcolor: 'background.paper' } : {}) };
@@ -152,15 +162,16 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
     button?.focus(); focusGroup.current = undefined;
   }, [state.expandedColumnIds]);
   const latest = useRef({ state, page: view.page, props }); latest.current = { state, page: view.page, props };
-  const update = (patch: Partial<TableState>) => {
+  const update = (patch: Partial<TableState>, reason?: TableAction) => {
     const current = latest.current;
     const next = { ...current.state, page: current.page, ...patch };
     const action: TableAction = 'search' in patch ? 'search' : 'filters' in patch ? 'filter' : 'sort' in patch ? 'sort'
       : 'pageSize' in patch ? 'pageSize' : 'selectedIds' in patch ? 'selection' : 'expandedIds' in patch ? 'expansion'
       : 'page' in patch ? 'page' : 'columns';
     if (current.props.state === undefined) setInternalState(next);
-    current.props.onStateChange?.(next); current.props.onAction?.(action, next);
+    current.props.onStateChange?.(next); current.props.onAction?.(reason ?? action, next);
   };
+  const emit = (action: TableAction) => latest.current.props.onAction?.(action, latest.current.state);
   useEffect(() => { props.onAction?.('init', state); }, []);
   useEffect(() => {
     if (props.storageKey && props.state === undefined) { try { localStorage.setItem(props.storageKey, savedState(state)); } catch { /* Storage can be disabled. */ } }
@@ -177,7 +188,7 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
   const expandableSet = new Set(expandableIds);
   const allExpanded = expandableIds.length > 0 && expandableIds.every(id => expandedIds.has(id));
   const toggleExpansion = (id: string) => update({ expandedIds: expandedIds.has(id) ? state.expandedIds.filter(value => value !== id) : [...state.expandedIds, id] });
-  const changeFilter = (id: string, value: FilterValue) => update({ page: 0, filters: { ...state.filters, [id]: value } });
+  const changeFilter = (id: string, value: FilterValue) => update({ page: 0, filters: { ...state.filters, [id]: value } }, 'filterChipClose');
   const toggleGroup = (id: string) => {
     focusGroup.current = id;
     update({ expandedColumnIds: state.expandedColumnIds.includes(id)
@@ -201,13 +212,15 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
   const replaced = Boolean(selectionBar && props.selectionToolbar === 'replace');
   const hasToolbar = searchEnabled || (toolbar != null && toolbar !== false) || Boolean(props.csvFileName || props.printable || selectionBar);
   const Pagination = components.Pagination ?? TablePagination;
+  const Choice = components.Checkbox ?? Checkbox;
+  const ExpandButton = components.ExpandButton ?? Button;
   const stacked = props.responsive === 'stacked' || props.responsive === 'simple';
   return <Paper variant="outlined">
     {props.header}
     {selectionBar && props.selectionToolbar === 'above' && <Stack direction="row" useFlexGap sx={barSx}>{selectionBar}</Stack>}
-    {hasToolbar && <Stack direction="row" useFlexGap sx={barSx}>
+    {hasToolbar && <Stack component={components.Toolbar ?? 'div'} direction="row" useFlexGap sx={barSx}>
       {!replaced && <>
-        {searchEnabled && props.searchDisplay === 'toggle' && <Button onClick={() => setSearchOpen(value => !value)}>{searchOpen ? labels.hideSearch : labels.showSearch}</Button>}
+        {searchEnabled && props.searchDisplay === 'toggle' && <Button onClick={() => { setSearchOpen(value => !value); emit(searchOpen ? 'searchClose' : 'searchOpen'); }}>{searchOpen ? labels.hideSearch : labels.showSearch}</Button>}
         {searchEnabled && (props.searchDisplay !== 'toggle' || searchOpen) && <SearchField value={state.search} label={labels.search}
           delay={props.searchDebounceMs} render={props.renderSearch} onChange={search => update({ search, page: 0 })} />}
         {toolbar}
@@ -219,10 +232,11 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
       {props.selectionToolbar !== 'above' && selectionBar}
     </Stack>}
     {deleteError && <Alert severity="error" role="status">{labels.deleteFailed}</Alert>}
-    {columnControls && <ColumnControls columns={layoutColumns} state={state} labels={labels} update={update} />}
-    <FilterPanel columns={filterColumns} filters={state.filters} labels={labels} confirm={props.filterMode === 'confirm'} onChange={filters => update({ page: 0, filters })} />
-    <FilterChips columns={getOrderedColumns(resolvedColumns, state.columnOrder)} filters={state.filters} labels={labels} onChange={changeFilter} onReset={() => update({ page: 0, filters: {} })} />
-    <TableContainer sx={{ maxHeight: props.maxHeight }} tabIndex={props.maxHeight || pinned ? 0 : undefined} role={props.maxHeight || pinned ? 'region' : undefined}
+    {columnControls && <ColumnControls columns={layoutColumns} state={state} labels={labels} update={update} checkbox={components.Checkbox} />}
+    <FilterPanel columns={filterColumns} filters={state.filters} labels={labels} confirm={props.filterMode === 'confirm'} checkbox={components.Checkbox}
+      onOpen={() => emit('filterOpen')} onClose={() => emit('filterClose')} onChange={(filters, confirmed) => update({ page: 0, filters }, confirmed ? 'filterConfirm' : 'filter')} />
+    <FilterChips component={components.FilterChip} columns={getOrderedColumns(resolvedColumns, state.columnOrder)} filters={state.filters} labels={labels} onChange={changeFilter} onReset={() => update({ page: 0, filters: {} }, 'filterReset')} />
+    <TableContainer ref={container} sx={{ maxHeight: props.maxHeight }} tabIndex={props.maxHeight || pinned ? 0 : undefined} role={props.maxHeight || pinned ? 'region' : undefined}
       aria-label={props.maxHeight || pinned ? caption : undefined}>
       <Table component={components.Table ?? 'table'} size="small" stickyHeader={props.stickyHeader} role="table" sx={{
         ...(sized ? { tableLayout: 'fixed', width: tableWidth, ...(pinned ? {} : { minWidth: '100%' }), '& td, & th': { overflowWrap: 'anywhere' } } : {}),
@@ -244,13 +258,13 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
             const top = heights.slice(0, level).reduce((total, height) => total + height, 0);
             return <TableRow role="row" key={level}>
               {level === 0 && showExpansion && <TableCell rowSpan={headers.rows.length} scope="col" role="columnheader" sx={stickyStyle(undefined, true, 0, false, pinUtilities ? 0 : undefined)}>
-                {expandAll ? <Button disabled={!expandableIds.length} aria-label={props.mode === 'server'
+                {expandAll ? <ExpandButton disabled={!expandableIds.length} aria-label={props.mode === 'server'
                   ? allExpanded ? labels.collapseLoaded : labels.expandLoaded : allExpanded ? labels.collapseAll : labels.expandAll}
-                  onClick={() => update({ expandedIds: allExpanded ? state.expandedIds.filter(id => !expandableSet.has(id)) : [...new Set([...state.expandedIds, ...expandableIds])] })}>{allExpanded ? '−' : '+'}</Button>
+                  onClick={() => update({ expandedIds: allExpanded ? state.expandedIds.filter(id => !expandableSet.has(id)) : [...new Set([...state.expandedIds, ...expandableIds])] })}>{allExpanded ? '−' : '+'}</ExpandButton>
                   : <span style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden' }}>{labels.details}</span>}
               </TableCell>}
               {level === 0 && showSelection && <TableCell rowSpan={headers.rows.length} padding="checkbox" role="columnheader" sx={stickyStyle(undefined, true, 0, false, pinUtilities ? Number(showExpansion) * 64 : undefined)}>
-                {selectable !== 'single' && props.selectAll !== false && <Checkbox slotProps={{ input: { 'aria-label': selectAllScope === 'page' ? labels.selectPage : props.mode === 'server' ? labels.selectLoaded : labels.selectFiltered } }}
+                {selectable !== 'single' && props.selectAll !== false && <Choice slotProps={{ input: { 'aria-label': selectAllScope === 'page' ? labels.selectPage : props.mode === 'server' ? labels.selectLoaded : labels.selectFiltered } }}
                   checked={pageIds.length > 0 && pageSelected === pageIds.length} indeterminate={pageSelected > 0 && pageSelected < pageIds.length}
                   disabled={deleting || !pageIds.length} onChange={(_, checked) => toggle(pageIds, checked)} />}
               </TableCell>}
@@ -281,11 +295,11 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
             };
             const cells = <>
               {showExpansion && <TableCell role="cell" padding="none" sx={stickyStyle(undefined, false, 0, context.selected, pinUtilities ? 0 : undefined)}>
-                <Button disabled={!canExpand} aria-label={expanded ? labels.collapseRow(id) : labels.expandRow(id)} aria-expanded={Boolean(expanded)}
-                  aria-controls={renderExpanded && expanded ? detailsId : undefined} onClick={() => toggleExpansion(id)}>{expanded ? '−' : '+'}</Button>
+                <ExpandButton disabled={!canExpand} aria-label={expanded ? labels.collapseRow(id) : labels.expandRow(id)} aria-expanded={Boolean(expanded)}
+                  aria-controls={renderExpanded && expanded ? detailsId : undefined} onClick={() => toggleExpansion(id)}>{expanded ? '−' : '+'}</ExpandButton>
               </TableCell>}
               {showSelection && <TableCell padding="checkbox" role="cell" sx={stickyStyle(undefined, false, 0, context.selected, pinUtilities ? Number(showExpansion) * 64 : undefined)}>
-                <Checkbox slotProps={{ input: { 'aria-label': labels.selectRow(id) } }} disabled={deleting || !canSelect} checked={selected.has(id)} onChange={(_, checked) => toggle([id], checked)} />
+                <Choice slotProps={{ input: { 'aria-label': labels.selectRow(id) } }} disabled={deleting || !canSelect} checked={selected.has(id)} onChange={(_, checked) => toggle([id], checked)} />
               </TableCell>}
               {visibleColumns.map((column, columnIndex) => <TableCell component={components.Cell ?? 'td'} role="cell" key={column.id} align={column.align}
                 headers={headers.associations.get(column.id)?.join(' ')} onClick={() => props.onCellClick?.(row, column, context)}
