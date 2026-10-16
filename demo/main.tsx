@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Button, Chip, Container, CssBaseline, Typography } from '@mui/material';
+import { Button, Checkbox, Chip, Container, CssBaseline, FormControlLabel, Stack, Typography } from '@mui/material';
 import { DataTable } from '../src/index.js';
 import type { Column } from '../src/index.js';
 
@@ -13,7 +13,11 @@ const people = [
   { id: 'farah', name: 'Farah', team: 'Operations', location: 'Dubai', age: 34, joined: '2023-09-12' },
 ];
 const columns: Column<(typeof people)[number]>[] = [
-  { id: 'name', header: 'Name', value: row => row.name },
+  { id: 'name', header: 'Name', value: row => row.name,
+    filter: (row, query) => typeof query === 'string' && row.name.startsWith(query),
+    filterOptions: [{ value: 'A', label: 'Starts with A' }],
+    renderFilter: ({ id, value, onChange }) => <FormControlLabel label="Names starting with A"
+      control={<Checkbox id={id} checked={value === 'A'} onChange={(_, checked) => onChange(checked ? 'A' : '')} />} /> },
   { id: 'team', header: 'Team', value: row => row.team, filterType: 'multiselect',
     filterOptions: ['Engineering', 'Design', 'Operations'].map(value => ({ value, label: value })),
     render: value => <Chip label={String(value)} size="small" variant="outlined" /> },
@@ -25,15 +29,21 @@ const columns: Column<(typeof people)[number]>[] = [
 
 function Demo() {
   const [message, setMessage] = useState('');
+  const [search, setSearch] = useState(true);
+  const [pagination, setPagination] = useState(true);
   return (
     <>
       <CssBaseline />
       <Container maxWidth="lg" sx={{ py: 5 }}>
         <Typography variant="h4" component="h1" gutterBottom>MUI Tablekit</Typography>
         <Typography sx={{ mb: 3 }}>Search, filter, sort, expand, and select people across pages.</Typography>
+        <Stack direction="row" useFlexGap sx={{ mb: 2, flexWrap: 'wrap' }}>
+          <FormControlLabel label="Enable search" control={<Checkbox checked={search} onChange={(_, checked) => setSearch(checked)} />} />
+          <FormControlLabel label="Enable pagination" control={<Checkbox checked={pagination} onChange={(_, checked) => setPagination(checked)} />} />
+        </Stack>
         <DataTable caption="People" rows={people} columns={columns} getRowId={row => row.id}
           selectable defaultState={{ pageSize: 3 }} pageSizeOptions={[3, 6]}
-          columnControls csvFileName="people.csv" printable
+          columnControls csvFileName="people.csv" printable search={search} pagination={pagination}
           renderExpanded={row => <Typography>{row.name} joined {row.team} on {row.joined}.</Typography>}
           renderBulkActions={ids => <Button onClick={() => setMessage(`Selected IDs: ${ids.join(', ')}`)}>Show IDs</Button>} />
         <Typography role="status" sx={{ mt: 2 }}>{message}</Typography>

@@ -56,6 +56,35 @@ Search and text filters use case-insensitive substring matching. Search matches 
 
 `FilterValue` is a string for text/select, `string[]` for multiselect, or `{ min: string, max: string }` for ranges. A custom `filter(row, query)` receives this value and replaces the built-in matching. Multiselect matches any chosen value exactly; an empty selection clears the filter. Ranges are inclusive, and either bound may be blank. Numeric ranges accept numbers or numeric strings. Date ranges use UTC days and accept `Date` values or ISO date strings; include a timezone in timestamp strings. Impossible calendar dates, invalid cell values, and inverted ranges do not match an active range. Filters remain available when their columns are hidden.
 
+Use `renderFilter({ id, label, value, onChange })` for a custom control. It enables the control automatically, takes precedence over `filterType`, and can be suppressed with `filterable: false`. The renderer writes the same `FilterValue` shapes as built-in controls. Pair it with `filter(row, query)` for custom client matching; server mode only reports state changes. Label your custom inputs and use the supplied `id` when linking a label.
+
+```tsx
+const nameColumn: Column<Person> = {
+  id: 'name', header: 'Name', value: row => row.name,
+  filter: (row, query) => typeof query === 'string' && row.name.startsWith(query),
+  filterOptions: [{ value: 'A', label: 'Starts with A' }],
+  renderFilter: ({ id, value, onChange }) => (
+    <label htmlFor={id}>
+      <input id={id} type="checkbox" checked={value === 'A'}
+        onChange={event => onChange(event.target.checked ? 'A' : '')} />
+      Names starting with A
+    </label>
+  ),
+};
+```
+
+Active filters produce removable chips, including on hidden columns. Multiselect values and range bounds have separate chips. Clicking a chip or pressing Enter, Backspace, or Delete removes that criterion and resets the page. `filterOptions` supplies display labels for values, including custom widgets; empty multiselect values use the localized `emptyFilterValue` label. Empty strings, empty arrays, and ranges with both bounds empty produce no chips.
+
+“Reset filters” clears all column filters and resets the page to zero. It preserves search, sort, selection, expansion, layout, and page size. Customize chip text and actions with `labels.filterChip`, `labels.removeFilter`, `labels.resetFilters`, and the existing range labels. Controlled tables report changes and wait for the parent to apply them, keeping custom widgets, chips, and results in sync.
+
+### Search and pagination switches
+
+Both default to `true`. Set `search={false}` to hide the search field and ignore stored search text during client filtering. Stored text is retained so re-enabling search restores it. Column filters still apply.
+
+Set `pagination={false}` to hide the pager and show all filtered, sorted client rows. Selection applies to those visible rows; CSV and print still use the full filtered result. Stored page size is retained for re-enabling pagination. With neither search nor other toolbar content, no empty toolbar is rendered.
+
+Server mode always renders only supplied rows. These switches hide controls; the parent still owns remote queries, search criteria, pagination state, and data fetching. They do not request an entire remote dataset or silently rewrite parent-owned state.
+
 ## State
 
 Uncontrolled tables accept `defaultState` and optionally report changes through `onStateChange`. Controlled tables accept the complete `state` and `onStateChange`; the parent must apply changes. Keep the ownership mode fixed during a table's lifetime.
@@ -146,15 +175,15 @@ Scope reference: [mui-datatables documentation](https://github.com/gregnb/mui-da
 | --- | --- |
 | Search, sort, filters, pagination | Client operations and controlled server state |
 | Selection and bulk actions | Stable IDs, page selection, custom action content |
-| Custom rendering and controls | Column rendering, comparison, predicates, toolbar |
+| Custom rendering and controls | Cells, filter widgets, comparison, predicates, toolbar |
 | Responsive layout and localization | Horizontal scroll, wrapping toolbar, overridable labels |
 | Expandable rows | Stable-ID details, controlled or uncontrolled |
 | Column visibility, ordering, resizing | Optional panel and controlled layout state |
 | CSV export and printing | Visible columns; filtered client results or loaded server page |
-| Advanced filters | Text, select, multiselect, numeric/date ranges, custom predicates |
+| Advanced filters | Built-in/custom controls, removable value/bound chips, reset-all |
 | Accessibility | Semantic markup and interaction tests; release audit pending |
 
-This is not complete mui-datatables parity. Missing surfaces include removable filter chips/reset-all, custom filter-control rendering, inferred filter choices, native array-valued cells and any/all matching, switches to hide search/pagination, permanently excluded columns, row/cell styling props and header/footer/empty-content slots. Some can be supplied through controlled state, custom predicates, cell rendering, or a surrounding application component.
+This is not complete mui-datatables parity. Missing surfaces include inferred filter choices, native array-valued cells and any/all matching, permanently excluded columns, row/cell styling props and header/footer/empty-content slots. Some can be supplied through controlled state, custom predicates, cell rendering, or a surrounding application component.
 
 Other upstream options not provided here include single/conditional/click-to-select selection, select-all across filtered pages, expand-all/conditional expansion, drag handles, sticky-header/body-height controls, stacked mobile views, filter confirmation dialogs, and CSV delimiter/formatter/per-column export options. Row actions can already be ordinary custom-rendered columns. Route persistence, search debouncing, and backend query translation belong in an application adapter using the controlled state API.
 
