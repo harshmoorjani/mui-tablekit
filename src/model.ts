@@ -1,5 +1,7 @@
 import type { CellValue, Column, FilterValue, TableState } from './types.js';
 
+const collator = new Intl.Collator(undefined, { numeric: true });
+
 export function createTableState(state: Partial<TableState> = {}): TableState {
   return {
     search: '', filters: {}, sort: null, page: 0, pageSize: 10,
@@ -29,7 +31,7 @@ function compareValues(a: CellValue, b: CellValue): number {
   if (b == null) return -1;
   if (a instanceof Date && b instanceof Date) return a.getTime() - b.getTime();
   if (typeof a === 'number' && typeof b === 'number') return a - b;
-  return cellText(a).localeCompare(cellText(b), undefined, { numeric: true });
+  return collator.compare(cellText(a), cellText(b));
 }
 
 function dateNumber(value: CellValue): number {
@@ -59,7 +61,7 @@ function matchesFilter<Row>(column: Column<Row>, row: Row, filter: FilterValue |
 }
 
 export function getView<Row>(
-  rows: readonly Row[], columns: readonly Column<Row>[], state: TableState,
+  rows: readonly Row[], columns: readonly Column<Row>[], state: Pick<TableState, 'search' | 'filters' | 'sort' | 'page' | 'pageSize'>,
   serverRowCount?: number,
 ) {
   if (!Number.isInteger(state.page) || state.page < 0 ||
@@ -69,10 +71,10 @@ export function getView<Row>(
   if (serverRowCount !== undefined && (!Number.isInteger(serverRowCount) || serverRowCount < 0)) {
     throw new Error('MUI Tablekit: rowCount must be a nonnegative integer.');
   }
-  let result = [...rows];
+  let result = rows;
   if (serverRowCount === undefined) {
     const query = state.search.trim().toLocaleLowerCase();
-    result = result.filter(row =>
+    const filtered = rows.filter(row =>
       (!query || columns.some(column => column.searchable !== false &&
         cellText(column.value(row)).toLocaleLowerCase().includes(query))) &&
       columns.every(column => {
@@ -83,9 +85,10 @@ export function getView<Row>(
     const sort = state.sort;
     const column = columns.find(column => column.id === sort?.columnId);
     if (column && sort && column.sortable !== false) {
-      result.sort((a, b) => (sort.direction === 'asc' ? 1 : -1) *
+      filtered.sort((a, b) => (sort.direction === 'asc' ? 1 : -1) *
         (column.compare ? column.compare(a, b) : compareValues(column.value(a), column.value(b))));
     }
+    result = filtered;
   }
   const count = serverRowCount ?? result.length;
   // The server owns its page; never relabel old response rows as another page.
@@ -94,6 +97,7 @@ export function getView<Row>(
     : state.page;
   return {
     rows: serverRowCount === undefined ? result.slice(page * state.pageSize, (page + 1) * state.pageSize) : result,
+    allRows: result,
     count,
     page,
   };

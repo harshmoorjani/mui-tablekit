@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useId, useState } from 'react';
+import { Fragment, useId, useMemo, useState } from 'react';
 import {
   Box, Button, Checkbox, Paper, Stack, Table, TableBody, TableCell,
   TableContainer, TableHead, TablePagination, TableRow, TableSortLabel,
@@ -36,7 +36,10 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
   const state = props.state ?? internalState;
   const tableId = useId();
   const labels = { ...defaultLabels, ...props.labels };
-  const view = getView(rows, columns, state, props.mode === 'server' ? props.rowCount : undefined);
+  const { search, filters, sort, page, pageSize } = state;
+  const rowCount = props.mode === 'server' ? props.rowCount : undefined;
+  const view = useMemo(() => getView(rows, columns, { search, filters, sort, page, pageSize }, rowCount),
+    [rows, columns, search, filters, sort, page, pageSize, rowCount]);
   const selected = new Set(state.selectedIds);
   const ids = rows.map(getRowId);
   if (new Set(ids).size !== ids.length || ids.some(id => typeof id !== 'string' || !id)) {
@@ -64,8 +67,6 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
     rowIds.forEach(id => checked ? next.add(id) : next.delete(id));
     update({ selectedIds: [...next] });
   };
-  const outputRows = () => getView(rows, columns, { ...state, page: 0, pageSize: Math.max(rows.length, 1) },
-    props.mode === 'server' ? props.rowCount : undefined).rows;
 
   return (
     <Paper variant="outlined">
@@ -73,10 +74,10 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
         <TextField label={labels.search} size="small" type="search" value={state.search}
           onChange={event => update({ search: event.target.value, page: 0 })} />
         {toolbar}
-        {props.csvFileName && <Button onClick={() => downloadCsv(props.csvFileName!, visibleColumns, outputRows())}>
+        {props.csvFileName && <Button onClick={() => downloadCsv(props.csvFileName!, visibleColumns, view.allRows)}>
           {props.mode === 'server' ? labels.downloadCsvPage : labels.downloadCsv}
         </Button>}
-        {props.printable && <Button onClick={() => printRows(caption, visibleColumns, outputRows())}>
+        {props.printable && <Button onClick={() => printRows(caption, visibleColumns, view.allRows)}>
           {props.mode === 'server' ? labels.printPage : labels.print}
         </Button>}
         {selectable && selected.size > 0 && (

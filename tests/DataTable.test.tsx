@@ -266,6 +266,27 @@ it('waits for controlled width changes to be applied by the parent', async () =>
   expect(screen.getByRole('spinbutton', { name: 'Name width (px)' })).toHaveValue(280);
 });
 
+it('reuses the row model for selection and export, and refreshes it when data changes', async () => {
+  const user = userEvent.setup();
+  const compare = vi.fn((a: Person, b: Person) => a.age - b.age);
+  const stableColumns = [columns[0]!, columns[1]!, { ...columns[2]!, compare }];
+  const csv = vi.spyOn(output, 'downloadCsv').mockImplementation(() => {});
+  try {
+    const props = { ...base, columns: stableColumns, selectable: true, csvFileName: 'people.csv',
+      defaultState: { sort: { columnId: 'age', direction: 'asc' as const } } };
+    const { rerender } = render(<DataTable {...props} />);
+    const comparisons = compare.mock.calls.length;
+    expect(comparisons).toBeGreaterThan(0);
+    await user.click(screen.getByRole('checkbox', { name: 'Select row b' }));
+    await user.click(screen.getByRole('button', { name: 'Download CSV' }));
+    expect(compare).toHaveBeenCalledTimes(comparisons);
+    expect(csv).toHaveBeenCalledWith('people.csv', stableColumns, [rows[1], rows[2], rows[0]]);
+    rerender(<DataTable {...props} rows={rows.map(row => row.id === 'a' ? { ...row, age: 20 } : row)} />);
+    expect(compare.mock.calls.length).toBeGreaterThan(comparisons);
+    expect(screen.getAllByRole('row')[1]).toHaveTextContent('Ada');
+  } finally { csv.mockRestore(); }
+});
+
 // Server operations require a caller-owned query and total count.
 // @ts-expect-error server mode requires state and onStateChange
 const invalidServer: DataTableProps<Person> = { ...base, mode: 'server', rowCount: 100 };

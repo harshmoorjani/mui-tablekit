@@ -69,7 +69,7 @@ it('leaves server rows untouched even when local state would exclude them', () =
     search: 'missing', filters: { name: 'missing' },
     sort: { columnId: 'age', direction: 'asc' }, page: 2, pageSize: 1,
   }), 100);
-  expect(view).toEqual({ rows, count: 100, page: 2 });
+  expect(view).toEqual({ rows, allRows: rows, count: 100, page: 2 });
   expect(() => getView(rows, columns, createTableState(), -1)).toThrow(/rowCount/);
 });
 
