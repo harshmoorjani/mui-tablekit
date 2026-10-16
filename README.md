@@ -4,7 +4,13 @@ A small, typed React table built with MUI. Independent of mui-datatables, with a
 
 Inspired by [mui-datatables](https://github.com/gregnb/mui-datatables). Upstream development appears inactive: its latest default-branch commit is from [January 2023](https://github.com/gregnb/mui-datatables/commit/e09c39cb3c5713c7c157845b3d3e4b7d77c77649). MUI Tablekit aims to carry that useful feature set forward with current React and MUI, a smaller implementation, and its own typed API.
 
-**Not published yet.** Core features are implemented; release qualification is still in progress.
+An independent API, not a drop-in mui-datatables replacement. See [feature coverage](#feature-coverage) and the [release notes](CHANGELOG.md).
+
+```sh
+npm install mui-tablekit @mui/material @emotion/react @emotion/styled
+```
+
+React and React DOM are required peers. See [supported versions](#usage).
 
 ## Try it
 
@@ -27,7 +33,7 @@ The Custom components example offers two runnable implementations for each of 23
 
 React 19.3.1+, MUI 9.5+, Emotion React 11.5+, and Emotion Styled 11.3+ are peer dependencies. Only these major versions are currently supported. Development uses TypeScript 6.0.3. Current checks use React 19.3.1, MUI 9.5.0, and Emotion React/Styled 11.14.x; every version within the peer ranges has not been tested.
 
-After publication, the import will be `mui-tablekit`. For local testing, run `npm pack` here and install the generated tarball in another project.
+Import from `mui-tablekit`. For local testing, run `npm pack` here and install the generated tarball in another project.
 
 ```tsx
 import {DataTable, type Column} from 'mui-tablekit'
@@ -265,9 +271,9 @@ Default rows stay compact by truncating overflowing cell text with an ellipsis; 
 
 Pass `labels` to replace search, filter, sort, selection, expansion, column-control, output, empty-state, and pagination text; function-valued labels support counts and row IDs. Header handles and the column panel both offer keyboard operation.
 
-The table has a visible title, scoped column headers, sort announcements, labeled inputs and checkboxes, keyboard-operable sorting, and status text for selection and empty results. Automated interaction checks do not replace screen-reader and real-browser qualification before release.
+The table has a visible title, scoped column headers, sort announcements, labeled inputs and checkboxes, keyboard-operable sorting, and status text for selection and empty results. Automated interaction checks do not replace manual accessibility testing.
 
-Independent browser checks passed in Playwright Chromium 131 and Firefox 132. Chromium checks covered all four themes at 1440 px and 390 px, with no page errors, page overflow, or automated WCAG A/AA findings in the tested states. Firefox covered the 10,000-row example, search/sort, nested expansion and mobile layout. WebKit could not start because this host lacks its required shared libraries; Safari, manual screen-reader use, and the native print dialog remain unverified. Browser engines and audit tools are temporary local test tools, not package dependencies.
+Independent browser checks passed in Playwright Chromium 131 and Firefox 132. Both covered all four themes at 320, 390, 900, and 1440 px, including combined drag, resize, and sticky-column states, with no runtime errors, page overflow, or automated WCAG AA findings in the tested states. All 46 customization examples were exercised at desktop/mobile widths. Firefox also covered the 10,000-row example, search/sort, and nested expansion. WebKit could not start because this host lacks its required shared libraries; Safari, physical devices, manual screen-reader use, and the native print dialog remain unverified. Browser engines and audit tools are temporary local test tools, not package dependencies.
 
 ### Rendering and control overrides
 
@@ -335,16 +341,16 @@ Scope reference: [mui-datatables documentation](https://github.com/gregnb/mui-da
 
 The previously identified feature gaps are implemented. This remains an independent API, not a drop-in mui-datatables replacement or a claim of exhaustive parity with every upstream option. Row actions are ordinary custom-rendered columns; remote queries use the controlled-state adapter pattern above. Server selection, expansion, CSV, and print always operate on supplied rows; remote “all results” actions require an application/backend contract.
 
+There are no dedicated replacement slots for the entire filter panel, column panel, resize implementation, or filter-dialog footer. Custom cell editors update caller-owned rows rather than receiving an internal cell-update callback. Use the controlled state and toolbar renderers for application-owned controls.
+
 ## Distribution
 
 ES modules and TypeScript declarations are built with `tsc`; React, MUI, and Emotion remain peer dependencies. There is no table-engine dependency or bundled copy of the UI framework.
 
-The package allowlist contains only `dist`; npm also includes the manifest, README, and license. Source tests, demo assets, and local environment files are excluded. Builds clear generated `dist` output before compilation so deleted-source artifacts cannot remain in the tarball. `prepack` builds the library; `prepublishOnly` runs the full checks. Checks and releases run locally; this repository has no GitHub workflows.
+The package allowlist contains `dist` and the changelog; npm also includes the manifest, README, and license. Source tests, demo assets, and local environment files are excluded. Builds clear generated `dist` output before compilation so deleted-source artifacts cannot remain in the tarball. `prepack` builds the library; `prepublishOnly` runs the full checks. Checks and releases run locally; this repository has no GitHub workflows.
 
 Release checks include a fresh tarball install, strict TypeScript compilation against the public API, React server rendering, allowlist and common credential-pattern checks, Git history scanning, and a dependency audit. No credentials or publishing tokens are stored here; these checks are not a guarantee against security issues.
 
-Before the first release: finish the manual accessibility/print and Safari/WebKit checks above, verify package ownership/permissions, repeat checks against the exact release tarball, and authorize publication.
+The initial release defers Safari/WebKit, physical-device, manual screen-reader, and native print-dialog qualification. React 19 and MUI 9 are the supported major versions; CommonJS output is not provided.
 
-The 2026-10-16 registry lookup for `mui-tablekit` returned 404. The name is not reserved, and publishing ownership/permissions remain unverified. Nothing has been pushed or published.
-
-Licensed under the [Unlicense](LICENSE). MUI Tablekit is an independent project, not an official MUI product.
+Licensed under the [Unlicense](LICENSE). Bundled playground dependencies retain their own [license notices](https://github.com/harshmoorjani/mui-tablekit/blob/main/public/THIRD_PARTY_NOTICES.txt); refresh these when updating demo dependencies. MUI Tablekit is an independent project, not an official MUI product.
