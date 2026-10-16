@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
+import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { describe, expect, it, vi } from 'vitest';
 import { createTableState, DataTable } from '../src/index.js';
 import type { Column, DataTableProps, TableState } from '../src/index.js';
@@ -294,6 +295,16 @@ it('supports arbitrary string row IDs in accessible expansion references', async
   await user.click(screen.getAllByRole('button', { name: /Expand row/ })[0]!);
   const toggle = screen.getByRole('button', { name: /Collapse row/ });
   expect(document.getElementById(toggle.getAttribute('aria-controls')!)).toHaveTextContent('Details for Ada');
+});
+
+it('labels and operates first/last pagination buttons enabled by the application theme', async () => {
+  const user = userEvent.setup();
+  const theme = createTheme({ components: { MuiTablePagination: { defaultProps: { showFirstButton: true, showLastButton: true } } } });
+  render(<ThemeProvider theme={theme}><DataTable {...base} defaultState={{ page: 1, pageSize: 1 }} /></ThemeProvider>);
+  await user.click(screen.getByRole('button', { name: 'Last page' }));
+  expect(screen.getByText('Cleo')).toBeVisible();
+  await user.click(screen.getByRole('button', { name: 'First page' }));
+  expect(screen.getByText('Ada')).toBeVisible();
 });
 
 // Server operations require a caller-owned query and total count.

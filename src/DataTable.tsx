@@ -19,6 +19,7 @@ const defaultLabels: TableLabels = {
   filterMin: header => `${header} from`, filterMax: header => `${header} to`, clearFilter: 'Any',
   sort: header => `Sort by ${header}`, rowsPerPage: 'Rows per page:',
   previousPage: 'Previous page', nextPage: 'Next page',
+  firstPage: 'First page', lastPage: 'Last page',
   expandRow: id => `Expand row ${id}`, collapseRow: id => `Collapse row ${id}`,
   details: 'Details', columns: 'Columns', showColumn: header => `Show ${header}`,
   moveColumn: (header, direction) => `Move ${header} ${direction}`,
@@ -178,7 +179,7 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
       <TablePagination component="div" count={view.count} page={view.page}
         rowsPerPage={state.pageSize} rowsPerPageOptions={[...new Set([...pageSizeOptions, state.pageSize])].sort((a, b) => a - b)}
         labelRowsPerPage={labels.rowsPerPage} labelDisplayedRows={labels.displayedRows}
-        getItemAriaLabel={type => type === 'previous' ? labels.previousPage : labels.nextPage}
+        getItemAriaLabel={type => ({ first: labels.firstPage, last: labels.lastPage, previous: labels.previousPage, next: labels.nextPage })[type]}
         onPageChange={(_, page) => update({ page })}
         onRowsPerPageChange={event => update({ pageSize: Number(event.target.value), page: 0 })} />
     </Paper>

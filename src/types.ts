@@ -46,6 +46,8 @@ export interface TableLabels {
   rowsPerPage: string;
   previousPage: string;
   nextPage: string;
+  firstPage: string;
+  lastPage: string;
   expandRow: (id: string) => string;
   collapseRow: (id: string) => string;
   details: string;
