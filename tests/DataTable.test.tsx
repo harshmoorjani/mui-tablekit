@@ -250,6 +250,21 @@ it('emits structured date ranges in server mode without filtering supplied rows'
   expect(screen.getByText('Ada')).toBeVisible();
 });
 
+it('waits for controlled width changes to be applied by the parent', async () => {
+  const user = userEvent.setup();
+  const change = vi.fn();
+  const { rerender } = render(<DataTable {...base} columnControls state={createTableState()} onStateChange={change} />);
+  await user.click(screen.getByText('Columns', { exact: true }));
+  const width = screen.getByRole('spinbutton', { name: 'Name width (px)' });
+  await user.clear(width);
+  await user.type(width, '280');
+  await user.tab();
+  expect(change).toHaveBeenLastCalledWith(expect.objectContaining({ columnWidths: { name: 280 } }));
+  expect(width).toHaveValue(160);
+  rerender(<DataTable {...base} columnControls state={createTableState({ columnWidths: { name: 280 } })} onStateChange={change} />);
+  expect(screen.getByRole('spinbutton', { name: 'Name width (px)' })).toHaveValue(280);
+});
+
 // Server operations require a caller-owned query and total count.
 // @ts-expect-error server mode requires state and onStateChange
 const invalidServer: DataTableProps<Person> = { ...base, mode: 'server', rowCount: 100 };

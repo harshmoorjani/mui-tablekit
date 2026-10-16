@@ -38,7 +38,7 @@ export function ColumnControls<Row>({ columns, state, labels, update }: {
                   const number = Number(event.target.value);
                   const width = event.target.value !== '' && Number.isFinite(number)
                     ? Math.min(1000, Math.max(80, number)) : columnWidth(state.columnWidths, column.id);
-                  event.target.value = String(width);
+                  event.target.value = String(columnWidth(state.columnWidths, column.id));
                   update({ columnWidths: { ...state.columnWidths, [column.id]: width } });
                 }} />
             </Stack>
