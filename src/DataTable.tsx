@@ -427,12 +427,19 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
   const changeFilter = (id: string, value: FilterValue) =>
     update({page: 0, filters: {...state.filters, [id]: value}}, 'filterChipClose')
   const toggleGroup = (id: string) => {
+    const expandedColumnIds = state.expandedColumnIds.includes(id)
+      ? state.expandedColumnIds.filter(value => value !== id)
+      : [...state.expandedColumnIds, id]
+    const next = displayedColumns(columnModel, expandedColumnIds, state.columnOrder)
+    if (!next.length) return
+    const fallback =
+      next.find(column => column.id === id || columnModel.paths.get(column.id)?.some(group => group.id === id)) ??
+      next[0]!
+    const hiddenColumnIds = next.some(column => column.hideable === false || !state.hiddenColumnIds.includes(column.id))
+      ? state.hiddenColumnIds
+      : state.hiddenColumnIds.filter(value => value !== fallback.id)
     focusGroup.current = id
-    update({
-      expandedColumnIds: state.expandedColumnIds.includes(id)
-        ? state.expandedColumnIds.filter(value => value !== id)
-        : [...state.expandedColumnIds, id]
-    })
+    update({expandedColumnIds, hiddenColumnIds})
   }
   const exportColumns = (items: readonly Column<Row>[]) =>
     items.map(column => {

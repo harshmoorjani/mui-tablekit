@@ -8,6 +8,45 @@ const rows = [{id: 'a'}, {id: 'b'}, {id: 'c'}]
 const columns = [{id: 'id', header: 'Name', value: (row: {id: string}) => row.id}]
 const base = {rows, columns, getRowId: (row: {id: string}) => row.id, caption: 'Controls'}
 
+it.each([false, true])('keeps a visible column when toggling a group with hidden columns (expanded: %s)', expanded => {
+  render(
+    <DataTable
+      {...base}
+      columns={[
+        ...columns,
+        {
+          id: 'total',
+          header: 'Total',
+          value: row => row.id,
+          columns: [
+            {id: 'a', header: 'A', value: row => row.id},
+            {id: 'b', header: 'B', value: row => row.id}
+          ]
+        }
+      ]}
+      defaultState={{
+        expandedColumnIds: expanded ? ['total'] : [],
+        hiddenColumnIds: expanded ? ['id', 'total', 'b'] : ['id', 'a', 'b']
+      }}
+    />
+  )
+  fireEvent.click(screen.getByRole('button', {name: `${expanded ? 'Collapse' : 'Expand'} Total columns`}))
+  expect(screen.getByRole('columnheader', {name: expanded ? /Total/ : /A/})).toBeVisible()
+  fireEvent.click(screen.getByRole('button', {name: `${expanded ? 'Expand' : 'Collapse'} Total columns`}))
+  expect(screen.getByRole('columnheader', {name: expanded ? /A/ : /Total/})).toBeVisible()
+})
+
+it('leaves an aggregate visible when all of its children are excluded', () => {
+  render(
+    <DataTable
+      {...base}
+      columns={[{id: 'total', header: 'Total', value: row => row.id, columns: [{...columns[0]!, excluded: true}]}]}
+    />
+  )
+  fireEvent.click(screen.getByRole('button', {name: 'Expand Total columns'}))
+  expect(screen.getByRole('columnheader', {name: /Total/})).toBeVisible()
+})
+
 it('keeps the title before controls, filters before search, and inline selection beside search', () => {
   render(
     <DataTable
