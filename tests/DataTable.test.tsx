@@ -141,6 +141,25 @@ describe('DataTable', () => {
     expect(() => render(<DataTable {...base} rows={[rows[0]!, rows[0]!]} />)).toThrow(/getRowId/);
     expect(() => render(<DataTable {...base} columns={[columns[0]!, columns[0]!]} />)).toThrow(/columns/);
   });
+
+  it('keeps expansion attached to row IDs through sorting and paging', async () => {
+    const user = userEvent.setup();
+    render(<DataTable {...base} selectable defaultState={{ pageSize: 2 }}
+      renderExpanded={row => <p>Details for {row.name}</p>} />);
+    const expand = screen.getByRole('button', { name: 'Expand row a' });
+    expand.focus();
+    await user.keyboard('{Enter}');
+    expect(screen.getByText('Details for Ada')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Collapse row a' })).toHaveAttribute('aria-expanded', 'true');
+    await user.click(screen.getByRole('button', { name: 'Sort by Age' }));
+    expect(screen.queryByText('Details for Ada')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Next page' }));
+    expect(screen.getByText('Details for Ada')).toBeVisible();
+    expect(screen.getByText('Details for Ada').closest('td')).toHaveAttribute('colspan', '5');
+    await user.click(screen.getByRole('button', { name: 'Collapse row a' }));
+    expect(screen.queryByText('Details for Ada')).not.toBeInTheDocument();
+    expect(screen.getByRole('checkbox', { name: 'Select row a' })).not.toBeChecked();
+  });
 });
 
 // Server operations require a caller-owned query and total count.

@@ -1,7 +1,7 @@
 import type { CellValue, Column, TableState } from './types.js';
 
 export function createTableState(state: Partial<TableState> = {}): TableState {
-  return { search: '', filters: {}, sort: null, page: 0, pageSize: 10, selectedIds: [], ...state };
+  return { search: '', filters: {}, sort: null, page: 0, pageSize: 10, selectedIds: [], expandedIds: [], ...state };
 }
 
 export function cellText(value: CellValue): string {

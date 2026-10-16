@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { Fragment, useId, useState } from 'react';
 import {
   Box, Button, Checkbox, Paper, Stack, Table, TableBody, TableCell,
   TableContainer, TableHead, TablePagination, TableRow, TableSortLabel,
@@ -15,16 +15,18 @@ const defaultLabels: TableLabels = {
   clearSelection: 'Clear selection', filter: header => `Filter ${header}`,
   sort: header => `Sort by ${header}`, rowsPerPage: 'Rows per page:',
   previousPage: 'Previous page', nextPage: 'Next page',
+  expandRow: id => `Expand row ${id}`, collapseRow: id => `Collapse row ${id}`,
   displayedRows: ({ from, to, count }) => `${from}–${to} of ${count}`,
 };
 
 export function DataTable<Row>(props: DataTableProps<Row>) {
   const {
     rows, columns, getRowId, caption, selectable = false, renderBulkActions,
-    toolbar, pageSizeOptions = [10, 25, 50],
+    toolbar, renderExpanded, pageSizeOptions = [10, 25, 50],
   } = props;
   const [internalState, setInternalState] = useState(() => createTableState(props.defaultState));
   const state = props.state ?? internalState;
+  const tableId = useId();
   const labels = { ...defaultLabels, ...props.labels };
   const view = getView(rows, columns, state, props.mode === 'server' ? props.rowCount : undefined);
   const selected = new Set(state.selectedIds);
@@ -68,6 +70,7 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
           <caption style={{ captionSide: 'top', textAlign: 'start', padding: '0 16px 12px' }}>{caption}</caption>
           <TableHead>
             <TableRow>
+              {renderExpanded && <TableCell><span style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden' }}>{caption}</span></TableCell>}
               {selectable && (
                 <TableCell padding="checkbox">
                   <Checkbox slotProps={{ input: { 'aria-label': labels.selectPage } }}
@@ -93,6 +96,7 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
             </TableRow>
             {columns.some(column => column.filterable) && (
               <TableRow>
+                {renderExpanded && <TableCell component="td" />}
                 {selectable && <TableCell component="td" />}
                 {columns.map(column => (
                   <TableCell key={column.id} component="td">
@@ -109,8 +113,19 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
           <TableBody>
             {view.rows.map(row => {
               const id = getRowId(row);
+              const expanded = state.expandedIds.includes(id);
+              const detailsId = `${tableId}-${encodeURIComponent(id)}`;
               return (
-                <TableRow key={id} selected={selectable && selected.has(id)}>
+                <Fragment key={id}>
+                <TableRow selected={selectable && selected.has(id)}>
+                  {renderExpanded && <TableCell padding="none">
+                    <Button aria-label={expanded ? labels.collapseRow(id) : labels.expandRow(id)}
+                      aria-expanded={expanded} aria-controls={expanded ? detailsId : undefined}
+                      onClick={() => update({ expandedIds: expanded
+                        ? state.expandedIds.filter(value => value !== id) : [...state.expandedIds, id] })}>
+                      {expanded ? '−' : '+'}
+                    </Button>
+                  </TableCell>}
                   {selectable && (
                     <TableCell padding="checkbox">
                       <Checkbox slotProps={{ input: { 'aria-label': labels.selectRow(id) } }}
@@ -123,10 +138,16 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
                     </TableCell>
                   ))}
                 </TableRow>
+                {renderExpanded && expanded && <TableRow>
+                  <TableCell id={detailsId} colSpan={columns.length + Number(selectable) + 1}>
+                    {renderExpanded(row)}
+                  </TableCell>
+                </TableRow>}
+                </Fragment>
               );
             })}
             {!view.rows.length && (
-              <TableRow><TableCell colSpan={columns.length + Number(selectable)}>
+              <TableRow><TableCell colSpan={columns.length + Number(selectable) + Number(Boolean(renderExpanded))}>
                 <Box role="status" sx={{ py: 3, textAlign: 'center' }}>{labels.empty}</Box>
               </TableCell></TableRow>
             )}
