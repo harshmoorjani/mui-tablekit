@@ -5,7 +5,7 @@ import {
 } from '@mui/material';
 import { ThemeProvider } from '@mui/material/styles';
 import { createTableState, DataTable } from '../src/index.js';
-import type { Column } from '../src/index.js';
+import type { Column, ToolbarButtonProps } from '../src/index.js';
 import { createPeople, locations, statuses, teams } from './data.js';
 import type { Person } from './data.js';
 import { ServerDemo } from './ServerDemo.js';
@@ -14,6 +14,9 @@ import { HierarchyDemo } from './HierarchyDemo.js';
 
 const options = (values: string[]) => values.map(value => ({ value, label: value }));
 const currency = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+function TextToolbarButton({ label, onClick, active, expanded }: ToolbarButtonProps) {
+  return <Button size="small" onClick={onClick} aria-pressed={active} aria-expanded={expanded} variant={active ? 'contained' : 'text'}>{label}</Button>;
+}
 const columns: Column<Person>[] = [
   { id: 'email', header: 'Email', value: row => row.email, excluded: true, filterable: false },
   { id: 'name', header: 'Name', value: row => row.name, filterType: 'text' },
@@ -43,7 +46,7 @@ const defaults = {
   columnReordering: false, columnResizing: false, sticky: false, stacked: false,
   confirm: false, clickSelection: false, filteredSelection: false, eligible: false, expandAll: false,
   stickyColumns: false, checkboxFilters: false, toggleSearch: false, debounce: false, jump: false, caseSensitive: false,
-  hideCheckboxes: false, hideSelectAll: false,
+  hideCheckboxes: false, hideSelectAll: false, inlineFilters: false, textButtons: false,
 };
 const toggles: [keyof typeof defaults, string][] = [
   ['search', 'Enable search'], ['pagination', 'Enable pagination'], ['filters', 'Column filters'],
@@ -55,6 +58,7 @@ const toggles: [keyof typeof defaults, string][] = [
   ['stickyColumns', 'Sticky columns'], ['checkboxFilters', 'Checkbox status filter'], ['toggleSearch', 'Toggle search field'],
   ['debounce', 'Debounce search (200 ms)'], ['jump', 'Jump to page'], ['caseSensitive', 'Case-sensitive search'],
   ['hideCheckboxes', 'Hide selection checkboxes'], ['hideSelectAll', 'Hide select-all checkbox'],
+  ['inlineFilters', 'Inline filters'], ['textButtons', 'Custom text toolbar buttons'],
 ];
 
 export function Demo() {
@@ -181,6 +185,7 @@ export function Demo() {
         expandAll={features.expandAll} columnReordering={features.columnReordering} columnResizing={features.columnResizing}
         stickyHeader={features.sticky} maxHeight={features.sticky ? 480 : undefined}
         responsive={features.stacked ? 'stacked' : 'scroll'} filterMode={features.confirm ? 'confirm' : 'immediate'}
+        filterDisplay={features.inlineFilters ? 'inline' : 'popover'} components={{ ToolbarButton: features.textButtons ? TextToolbarButton : undefined }}
         emptyContent={<Typography>No matching rows</Typography>}
         rowSx={row => ({ bgcolor: row.status === 'On leave' ? 'action.hover' : undefined })}
         columnControls={features.columnControls} csvFileName={features.csv ? 'people.csv' : undefined} printable={features.print}

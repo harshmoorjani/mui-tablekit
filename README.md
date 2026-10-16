@@ -17,7 +17,7 @@ npm run dev
 
 Run `npm run check` for type checks, interaction tests, package compilation, and the demo build.
 
-Use the Example selector for the people directory (up to 10,000 synthetic rows), nested report, or server adapter. Expand Table options for feature switches. All records are synthetic; the playground contains no application data or credentials.
+Use the Example selector for the people directory (up to 10,000 synthetic rows), nested report, or server adapter. Expand Table options for feature switches, including inline filters and a custom text-button toolbar. All records are synthetic; the playground contains no application data or credentials.
 
 `npm run demo:build` builds the playground into `/docs`, with relative asset paths and `.nojekyll`. Commit that folder, then configure repository Settings → Pages → Deploy from a branch → `main` → `/docs`. No workflow file or external hosting account is required; GitHub runs its own Pages deployment internally. Select Canvas or Garden for light themes, Midnight or Plum for dark themes. Pages has not been enabled or deployed by these local changes.
 
@@ -83,11 +83,13 @@ Active filters produce removable chips, including on hidden columns. Multiselect
 
 “Reset filters” clears all column filters and resets the page to zero. It preserves search, sort, selection, expansion, layout, and page size. Customize chip text and actions with `labels.filterChip`, `labels.removeFilter`, `labels.resetFilters`, and the existing range labels. Controlled tables report changes and wait for the parent to apply them, keeping custom widgets, chips, and results in sync.
 
-Set `filterMode="confirm"` to replace inline controls with a Filters dialog. Edits and its reset button affect a private draft. Apply commits the draft once and resets the page; Cancel, Escape, or clicking outside discards it. Chips outside the dialog still remove applied filters immediately. Labels include `filters`, `applyFilters`, and `cancelFilters`. Custom widgets must treat their supplied value as immutable.
+Filters open from the toolbar icon in a popover and apply immediately by default. Set `filterDisplay="inline"` to show the controls beneath the toolbar. `filterMode="confirm"` uses a Filters dialog instead: edits and its reset button affect a private draft. Apply commits the draft once and resets the page; Cancel, Escape, or clicking outside discards it. Chips outside the dialog still remove applied filters immediately. Labels include `filters`, `applyFilters`, and `cancelFilters`. Custom widgets must treat their supplied value as immutable.
 
 ### Search and pagination switches
 
-`caseSensitive` changes global search matching; `searchMatch(row, query, columns)` replaces it. `renderSearch({ id, label, value, onChange })` supplies a custom input. `searchDisplay="toggle"` adds a show/hide button without clearing the query. `searchDebounceMs={200}` delays updates and cancels pending input on unmount. `jumpToPage` adds a bounded page-number input committed on Enter or blur.
+`caseSensitive` changes global search matching; `searchMatch(row, query, columns)` replaces it. `renderSearch({ id, label, value, onChange })` supplies a custom input. `searchDisplay="toggle"` adds a show/hide icon without clearing the query. `searchDebounceMs={200}` delays updates and cancels pending input on unmount.
+
+The compact footer shows `Rows/Page: [N] | Page: ◀ [X] / Y ▶`. Page selection uses a dropdown for up to 200 pages, then bounded numeric entry to avoid creating huge menus. `jumpToPage` also requests numeric entry for smaller counts; commit with Enter or blur. Labels `rowsPerPage` and `page` customize the captions. A visually hidden row range remains available to assistive technology through `labels.displayedRows`.
 
 Both default to `true`. Set `search={false}` to hide the search field and ignore stored search text during client filtering. Stored text is retained so re-enabling search restores it. Column filters still apply.
 
@@ -152,13 +154,15 @@ Pass `renderExpanded(row)` to enable row details. Expansion uses stable row IDs 
 
 `isRowExpandable(row)` restricts which rows can show details. `expandAll` adds a header toggle for all eligible filtered client rows, or only supplied server rows. Collapsing that scope preserves expansion IDs outside it. Changing eligibility hides the details without deleting their IDs.
 
-Set `columnControls` to show a collapsible panel for visibility, ordering, and width. Checkboxes preserve at least one visible column; move buttons support keyboard operation. Width inputs apply on blur and clamp to 80–1000 pixels. Columns can stretch to fill the table container. These controls do not alter selection, expansion, sorting, or filters.
+Set `columnControls` to show a toolbar icon opening visibility, ordering, and width controls. Checkboxes preserve at least one visible column; move buttons support keyboard operation. Width inputs apply on blur and clamp to 80–1000 pixels. Columns can stretch to fill the table container. These controls do not alter selection, expansion, sorting, or filters.
 
 Layout is also controllable through `hiddenColumnIds`, `columnOrder`, and `columnWidths` without the panel. At least one column must remain visible. Unknown/duplicate order IDs are ignored, and new columns are appended in definition order. Only the supplied column definitions can appear.
 
 `excluded: true` on a column permanently removes it from the table, layout controls, CSV, and print. Its accessor can still support search and filters; this is a presentation option, not an authorization boundary. Use `searchable: false` and `filterable: false` when appropriate, and never send unauthorized data to the browser.
 
 `columnReordering` adds header drag handles; focus a handle and use Left/Right to move it with the keyboard. `columnResizing` adds pointer handles with Left/Right steps of 10 px and Home/End limits of 80/1000 px. Touch resizing uses pointer capture; ordering uses native desktop drag or keyboard controls. The existing column panel remains an alternative for all layouts.
+
+Dragging highlights the insertion edge before or after a header. Locked columns and different sticky zones reject the drop and show no target. The `data-drop-side="before"`/`"after"` header attribute can be styled through the MUI table-cell theme.
 
 Column `hideable: false` locks visibility; `draggable: false` prevents moving the column or moving others across it in controls. `sortDescFirst` starts sorting descending; `sortReset: false` cycles only between directions. `renderHeader({ id, header })` changes the label inside the header controls.
 
@@ -245,6 +249,33 @@ The table has a visible caption, scoped column headers, sort announcements, labe
 Independent browser checks passed in Playwright Chromium 131 and Firefox 132. Chromium checks covered all four themes at 1440 px and 390 px, with no page errors, page overflow, or automated WCAG A/AA findings in the tested states. Firefox covered the 10,000-row example, search/sort, nested expansion and mobile layout. WebKit could not start because this host lacks its required shared libraries; Safari, manual screen-reader use, and the native print dialog remain unverified. Browser engines and audit tools are temporary local test tools, not package dependencies.
 
 ### Rendering and control overrides
+
+The default toolbar puts search and icon actions in one compact row, wrapping when needed. Icons retain accessible names, tooltips and active/open states. No icon package is required.
+
+Pass your own React component through `components.ToolbarButton` to replace individual action buttons. Its `action` distinguishes `search`, `filters`, `columns`, `csv`, and `print`; return different components for each if needed. `renderToolbar` replaces the entire layout and receives the working search, filters, columns, CSV, print, selection and custom-content nodes. `components.Toolbar` changes only the wrapper.
+
+```tsx
+import { Box, Button, TablePagination } from '@mui/material';
+import type { TablePaginationProps } from '@mui/material/TablePagination';
+import type { ToolbarButtonProps } from 'mui-tablekit';
+
+function MyAction({ label, active, expanded, onClick, children }: ToolbarButtonProps) {
+  return <Button size="small" onClick={onClick} aria-pressed={active}
+    aria-expanded={expanded} startIcon={children}>{label}</Button>;
+}
+function MyFooter(props: TablePaginationProps) {
+  return <TablePagination {...props} sx={{ borderTop: 1, borderColor: 'divider' }} />;
+}
+
+<DataTable caption="People" rows={people} columns={columns} getRowId={row => row.id}
+  columnControls csvFileName="people.csv" printable
+  components={{ ToolbarButton: MyAction, Pagination: MyFooter }}
+  renderToolbar={({ search, filters, columns, csv, print, selection, custom }) => <>
+    {search}<Box sx={{ flexGrow: 1 }} />{custom}{columns}{filters}{csv}{print}{selection}
+  </>} />;
+```
+
+The pagination slot receives standard MUI `TablePaginationProps`; it can render your own footer code instead of delegating to MUI. Search uses `renderSearch`, each column's filter uses `renderFilter`, and chips use `components.FilterChip`. A fully custom toolbar can also replace any supplied node with application-owned controls using the controlled state API.
 
 `components` can replace `Table`, `Head`, `Body`, `Row`, `Cell`, `Toolbar`, `Pagination`, `Checkbox`, `ExpandButton`, and `FilterChip`. Replacements must forward supplied props and preserve native table semantics, refs where applicable, labels and keyboard behavior. `renderRow(row, context, cells)` replaces a whole row; return an appropriately keyed table row and retain the supplied cells when using built-in controls. `renderSummary(filteredRows, visibleColumns)` supplies table footer rows. `onRowClick` and `onCellClick` receive row context (ID, depth, selection, expansion).
 
