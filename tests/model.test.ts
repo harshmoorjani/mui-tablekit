@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createTableState, getView } from '../src/model.js';
+import { columnWidth, createTableState, getOrderedColumns, getView } from '../src/model.js';
 import type { Column } from '../src/index.js';
 
 const rows = [
@@ -71,4 +71,12 @@ it('leaves server rows untouched even when local state would exclude them', () =
   }), 100);
   expect(view).toEqual({ rows, count: 100, page: 2 });
   expect(() => getView(rows, columns, createTableState(), -1)).toThrow(/rowCount/);
+});
+
+it('normalizes persisted column order and widths after column definitions change', () => {
+  expect(getOrderedColumns(columns, ['age', 'removed', 'age']).map(column => column.id)).toEqual(['age', 'name', 'team']);
+  expect(columnWidth({}, 'constructor')).toBe(160);
+  expect(columnWidth({ name: Infinity }, 'name')).toBe(160);
+  expect(columnWidth({ name: 10 }, 'name')).toBe(80);
+  expect(columnWidth({ name: 2000 }, 'name')).toBe(1000);
 });

@@ -1,7 +1,23 @@
 import type { CellValue, Column, TableState } from './types.js';
 
 export function createTableState(state: Partial<TableState> = {}): TableState {
-  return { search: '', filters: {}, sort: null, page: 0, pageSize: 10, selectedIds: [], expandedIds: [], ...state };
+  return {
+    search: '', filters: {}, sort: null, page: 0, pageSize: 10,
+    selectedIds: [], expandedIds: [], hiddenColumnIds: [], columnOrder: [], columnWidths: {}, ...state,
+  };
+}
+
+export function getOrderedColumns<Row>(columns: readonly Column<Row>[], order: readonly string[]) {
+  const byId = new Map(columns.map(column => [column.id, column]));
+  return [...new Set([...order, ...byId.keys()])].flatMap(id => {
+    const column = byId.get(id);
+    return column ? [column] : [];
+  });
+}
+
+export function columnWidth(widths: Record<string, number>, id: string) {
+  const width = Object.hasOwn(widths, id) ? widths[id] : undefined;
+  return typeof width === 'number' && Number.isFinite(width) ? Math.min(1000, Math.max(80, width)) : 160;
 }
 
 export function cellText(value: CellValue): string {

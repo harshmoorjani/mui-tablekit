@@ -23,6 +23,9 @@ export interface TableState {
   pageSize: number;
   selectedIds: string[];
   expandedIds: string[];
+  hiddenColumnIds: string[];
+  columnOrder: string[];
+  columnWidths: Record<string, number>;
 }
 
 export interface TableLabels {
@@ -39,6 +42,11 @@ export interface TableLabels {
   nextPage: string;
   expandRow: (id: string) => string;
   collapseRow: (id: string) => string;
+  details: string;
+  columns: string;
+  showColumn: (header: string) => string;
+  moveColumn: (header: string, direction: 'previous' | 'next') => string;
+  columnWidth: (header: string) => string;
   displayedRows: (range: { from: number; to: number; count: number }) => string;
 }
 
@@ -54,6 +62,7 @@ interface BaseProps<Row> {
   selectable?: boolean;
   renderBulkActions?: (selectedIds: readonly string[]) => ReactNode;
   renderExpanded?: (row: Row) => ReactNode;
+  columnControls?: boolean;
   toolbar?: ReactNode;
   labels?: Partial<TableLabels>;
   pageSizeOptions?: number[];

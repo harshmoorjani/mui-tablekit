@@ -18,7 +18,7 @@ const columns: Column<Person>[] = [
 ];
 const base = { rows, columns, getRowId: (row: Person) => row.id, caption: 'People' };
 const names = () => within(screen.getByRole('table', { name: 'People' }))
-  .getAllByRole('row').slice(2).map(row => within(row).getAllByRole('cell')[0]?.textContent);
+  .getAllByRole('row').slice(1).map(row => within(row).getAllByRole('cell')[0]?.textContent);
 
 describe('DataTable', () => {
   it('combines search and column filters and resets pagination', async () => {
@@ -159,6 +159,28 @@ describe('DataTable', () => {
     await user.click(screen.getByRole('button', { name: 'Collapse row a' }));
     expect(screen.queryByText('Details for Ada')).not.toBeInTheDocument();
     expect(screen.getByRole('checkbox', { name: 'Select row a' })).not.toBeChecked();
+  });
+
+  it('hides, reorders, and resizes columns without losing hidden filters or selection', async () => {
+    const user = userEvent.setup();
+    const change = vi.fn();
+    render(<DataTable {...base} columnControls selectable onStateChange={change} />);
+    await user.click(screen.getByRole('checkbox', { name: 'Select row a' }));
+    await user.click(screen.getByText('Columns', { exact: true }));
+    await user.click(screen.getByRole('checkbox', { name: 'Show Team' }));
+    expect(screen.queryByRole('columnheader', { name: 'Team' })).not.toBeInTheDocument();
+    await user.type(screen.getByRole('textbox', { name: 'Filter Team' }), 'Design');
+    expect(screen.getByText('Ada')).toBeVisible();
+    expect(screen.queryByText('Ben')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Move Age previous' }));
+    await user.click(screen.getByRole('button', { name: 'Move Age previous' }));
+    const headers = screen.getAllByRole('columnheader');
+    expect(headers[1]).toHaveTextContent('Age');
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Age width (px)' }), { target: { value: '280' } });
+    expect(document.querySelector('colgroup col:nth-child(2)')).toHaveStyle({ width: '280px' });
+    expect(change).toHaveBeenLastCalledWith(expect.objectContaining({ selectedIds: ['a'], columnWidths: { age: 280 } }));
+    await user.click(screen.getByRole('checkbox', { name: 'Show Name' }));
+    expect(screen.getByRole('checkbox', { name: 'Show Age' })).toBeDisabled();
   });
 });
 

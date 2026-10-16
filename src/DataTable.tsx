@@ -6,7 +6,8 @@ import {
   TableContainer, TableHead, TablePagination, TableRow, TableSortLabel,
   TextField, Typography,
 } from '@mui/material';
-import { cellText, createTableState, getView } from './model.js';
+import { cellText, columnWidth, createTableState, getOrderedColumns, getView } from './model.js';
+import { ColumnControls } from './ColumnControls.js';
 import type { DataTableProps, TableLabels, TableState } from './types.js';
 
 const defaultLabels: TableLabels = {
@@ -16,13 +17,16 @@ const defaultLabels: TableLabels = {
   sort: header => `Sort by ${header}`, rowsPerPage: 'Rows per page:',
   previousPage: 'Previous page', nextPage: 'Next page',
   expandRow: id => `Expand row ${id}`, collapseRow: id => `Collapse row ${id}`,
+  details: 'Details', columns: 'Columns', showColumn: header => `Show ${header}`,
+  moveColumn: (header, direction) => `Move ${header} ${direction}`,
+  columnWidth: header => `${header} width (px)`,
   displayedRows: ({ from, to, count }) => `${from}–${to} of ${count}`,
 };
 
 export function DataTable<Row>(props: DataTableProps<Row>) {
   const {
     rows, columns, getRowId, caption, selectable = false, renderBulkActions,
-    toolbar, renderExpanded, pageSizeOptions = [10, 25, 50],
+    toolbar, renderExpanded, columnControls = false, pageSizeOptions = [10, 25, 50],
   } = props;
   const [internalState, setInternalState] = useState(() => createTableState(props.defaultState));
   const state = props.state ?? internalState;
@@ -39,6 +43,12 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
     throw new Error('MUI Tablekit: provide columns with unique, nonempty ids.');
   }
   const pageIds = view.rows.map(getRowId);
+  const orderedColumns = getOrderedColumns(columns, state.columnOrder);
+  const visibleColumns = orderedColumns.filter(column => !state.hiddenColumnIds.includes(column.id));
+  if (!visibleColumns.length) throw new Error('MUI Tablekit: at least one column must be visible.');
+  const sized = columnControls || Object.keys(state.columnWidths).length > 0;
+  const utilityColumns = Number(selectable) + Number(Boolean(renderExpanded));
+  const tableWidth = visibleColumns.reduce((width, column) => width + columnWidth(state.columnWidths, column.id), utilityColumns * 64);
   const pageSelected = pageIds.filter(id => selected.has(id)).length;
   const update = (patch: Partial<TableState>) => {
     const next = { ...state, page: view.page, ...patch };
@@ -65,12 +75,25 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
           </>
         )}
       </Stack>
+      {columnControls && <ColumnControls columns={orderedColumns} state={state} labels={labels} update={update} />}
+      {orderedColumns.some(column => column.filterable) && <Stack direction="row" useFlexGap sx={{ px: 2, pb: 2, gap: 2, flexWrap: 'wrap' }}>
+        {orderedColumns.filter(column => column.filterable).map(column => (
+          <TextField key={column.id} size="small" label={labels.filter(column.header)}
+            value={Object.hasOwn(state.filters, column.id) ? state.filters[column.id] : ''}
+            onChange={event => update({ page: 0, filters: { ...state.filters, [column.id]: event.target.value } })} />
+        ))}
+      </Stack>}
       <TableContainer>
-        <Table size="small">
+        <Table size="small" sx={sized ? { tableLayout: 'fixed', width: tableWidth, minWidth: '100%', '& td, & th': { overflowWrap: 'anywhere' } } : undefined}>
           <caption style={{ captionSide: 'top', textAlign: 'start', padding: '0 16px 12px' }}>{caption}</caption>
+          {sized && <colgroup>
+            {renderExpanded && <col style={{ width: 64 }} />}
+            {selectable && <col style={{ width: 64 }} />}
+            {visibleColumns.map(column => <col key={column.id} style={{ width: columnWidth(state.columnWidths, column.id) }} />)}
+          </colgroup>}
           <TableHead>
             <TableRow>
-              {renderExpanded && <TableCell><span style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden' }}>{caption}</span></TableCell>}
+              {renderExpanded && <TableCell scope="col"><span style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden' }}>{labels.details}</span></TableCell>}
               {selectable && (
                 <TableCell padding="checkbox">
                   <Checkbox slotProps={{ input: { 'aria-label': labels.selectPage } }}
@@ -79,7 +102,7 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
                     disabled={!pageIds.length} onChange={(_, checked) => toggle(pageIds, checked)} />
                 </TableCell>
               )}
-              {columns.map(column => (
+              {visibleColumns.map(column => (
                 <TableCell key={column.id} scope="col" align={column.align}
                   sortDirection={state.sort?.columnId === column.id ? state.sort.direction : false}>
                   {column.sortable === false ? column.header : (
@@ -94,21 +117,6 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
                 </TableCell>
               ))}
             </TableRow>
-            {columns.some(column => column.filterable) && (
-              <TableRow>
-                {renderExpanded && <TableCell component="td" />}
-                {selectable && <TableCell component="td" />}
-                {columns.map(column => (
-                  <TableCell key={column.id} component="td">
-                    {column.filterable && (
-                      <TextField size="small" label={labels.filter(column.header)}
-                        value={Object.hasOwn(state.filters, column.id) ? state.filters[column.id] : ''}
-                        onChange={event => update({ page: 0, filters: { ...state.filters, [column.id]: event.target.value } })} />
-                    )}
-                  </TableCell>
-                ))}
-              </TableRow>
-            )}
           </TableHead>
           <TableBody>
             {view.rows.map(row => {
@@ -132,14 +140,14 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
                         checked={selected.has(id)} onChange={(_, checked) => toggle([id], checked)} />
                     </TableCell>
                   )}
-                  {columns.map(column => (
+                  {visibleColumns.map(column => (
                     <TableCell key={column.id} align={column.align}>
                       {column.render ? column.render(column.value(row), row) : cellText(column.value(row))}
                     </TableCell>
                   ))}
                 </TableRow>
                 {renderExpanded && expanded && <TableRow>
-                  <TableCell id={detailsId} colSpan={columns.length + Number(selectable) + 1}>
+                  <TableCell id={detailsId} colSpan={visibleColumns.length + utilityColumns}>
                     {renderExpanded(row)}
                   </TableCell>
                 </TableRow>}
@@ -147,7 +155,7 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
               );
             })}
             {!view.rows.length && (
-              <TableRow><TableCell colSpan={columns.length + Number(selectable) + Number(Boolean(renderExpanded))}>
+              <TableRow><TableCell colSpan={visibleColumns.length + utilityColumns}>
                 <Box role="status" sx={{ py: 3, textAlign: 'center' }}>{labels.empty}</Box>
               </TableCell></TableRow>
             )}
