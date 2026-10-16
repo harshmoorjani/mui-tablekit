@@ -139,7 +139,7 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
             '& thead tr': { display: 'flex', flexWrap: 'wrap' },
             '& th': { display: 'block', position: 'static' },
             '& tbody tr': { borderBottom: 1, borderColor: 'divider' },
-            '& td': { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, textAlign: 'start', overflowWrap: 'anywhere' },
+            '& td': { display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 2, textAlign: 'start', overflowWrap: 'anywhere' },
             '& .tablekit-label': { display: 'inline', fontWeight: 600 },
           } } : {}),
         }}>
