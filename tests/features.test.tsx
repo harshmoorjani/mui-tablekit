@@ -24,6 +24,8 @@ it('expands nested rows with sibling sorting, root pagination, descendant filter
   render(<DataTable {...base} getSubRows={row => row.children} defaultState={{ pageSize: 1 }} selectable expandOnClick selectOnClick />);
   await user.click(screen.getByText('Products'));
   expect(screen.getByText('Alpha')).toBeVisible();
+  expect(screen.getByText('Products').closest('tr')).not.toHaveAttribute('aria-expanded');
+  expect(screen.getByRole('button', { name: 'Collapse row p' })).toHaveAttribute('aria-expanded', 'true');
   expect(screen.getByRole('checkbox', { name: 'Select row p' })).toBeChecked();
   expect(screen.getByText('1–1 of 2')).toBeVisible();
   await user.click(screen.getByRole('checkbox', { name: 'Select row b' }));

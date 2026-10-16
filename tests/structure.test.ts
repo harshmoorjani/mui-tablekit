@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { columnTree, headerRows } from '../src/columnLayout.js';
+import { columnTree, displayedColumns, headerRows } from '../src/columnLayout.js';
 import { rowTree, treeView } from '../src/tree.js';
 import { createTableState } from '../src/model.js';
 import type { ColumnDefinition } from '../src/index.js';
@@ -44,4 +44,14 @@ it('builds uneven grouped headers and recomputes spans after hiding and reorderi
   expect(headers.associations.get('high')).toHaveLength(3);
   expect(() => columnTree([{ id: 'empty', header: 'Empty', columns: [] }])).toThrow(/contain/);
   expect(() => columnTree([...definitions, definitions[0]!])).toThrow(/unique/);
+});
+
+it('keeps an aggregate group in its reordered position across collapse and expansion', () => {
+  const tree = columnTree([columns[0]!, { id: 'group', header: 'Group', value: (row: Row) => row.amount, columns: [
+    { ...columns[1]!, id: 'a' }, { ...columns[1]!, id: 'b' },
+  ] }, columns[1]!]);
+  expect(displayedColumns(tree, [], ['id', 'b', 'a', 'amount']).map(column => column.id)).toEqual(['id', 'group', 'amount']);
+  expect(displayedColumns(tree, ['group'], ['amount', 'group', 'id']).map(column => column.id)).toEqual(['amount', 'a', 'b', 'id']);
+  expect(displayedColumns(tree, ['group'], ['b', 'a', 'id', 'amount']).map(column => column.id)).toEqual(['b', 'a', 'id', 'amount']);
+  expect(displayedColumns(tree, [], ['amount', 'group', 'amount', 'id']).map(column => column.id)).toEqual(['amount', 'group', 'id']);
 });

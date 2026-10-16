@@ -102,7 +102,7 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
     ? { ...column, filterOptions: inferFilterOptions(column, allInputRows, Object.hasOwn(filters, column.id) ? filters[column.id] : undefined) }
     : column), [columns, allInputRows, filters]);
   const resolved = new Map(resolvedColumns.map(column => [column.id, column]));
-  const frontier = getOrderedColumns(displayedColumns(columnModel, state.expandedColumnIds), state.columnOrder)
+  const frontier = displayedColumns(columnModel, state.expandedColumnIds, state.columnOrder)
     .map(column => resolved.get(column.id)!);
   const layoutColumns = [...frontier.filter(column => column.sticky === 'left'), ...frontier.filter(column => !column.sticky),
     ...frontier.filter(column => column.sticky === 'right')];
@@ -120,7 +120,7 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
   const [containerWidth, setContainerWidth] = useState(Infinity);
   useLayoutEffect(() => {
     if (!container.current || !pinned) return;
-    const measure = () => { const width = container.current!.clientWidth; if (width > 0) setContainerWidth(width); };
+    const measure = () => { const width = container.current?.clientWidth ?? 0; if (width > 0) setContainerWidth(width); };
     measure();
     const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : undefined;
     observer?.observe(container.current); window.addEventListener('resize', measure);
@@ -146,7 +146,8 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
   useLayoutEffect(() => {
     if (!props.stickyHeader || !head.current) return;
     const measure = () => {
-      const next = [...head.current!.rows].map(row => row.getBoundingClientRect().height);
+      if (!head.current) return;
+      const next = [...head.current.rows].map(row => row.getBoundingClientRect().height);
       setHeights(previous => previous.join(',') === next.join(',') ? previous : next);
     };
     measure();
@@ -245,6 +246,7 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
           display: 'block', width: '100%', minWidth: 0,
           '& caption, & thead, & tbody, & tfoot, & tr': { display: 'block' }, '& colgroup': { display: 'none' },
           '& thead tr': { display: 'flex', flexWrap: 'wrap' }, '& th': { display: 'block', position: 'static' },
+          '& th.MuiTableCell-paddingCheckbox': { minWidth: 52, flexShrink: 0 },
           '& tbody tr': { borderBottom: 1, borderColor: 'divider' },
           '& td': { display: 'flex', flexDirection: 'row', position: 'static', alignItems: 'center', justifyContent: 'space-between', gap: 2, textAlign: 'start', overflowWrap: 'anywhere' },
           '& .tablekit-label': { display: props.responsive === 'simple' ? 'none' : 'inline', fontWeight: 600 },
@@ -283,7 +285,7 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
             const id = getRowId(row); const node = nodeFor(id);
             const canSelect = Boolean(selectable) && isRowSelectable(row);
             const canExpand = isRowExpandable(row) && Boolean(renderExpanded || node?.children.length);
-            const expanded = canExpand && (expandedIds.has(id) || view.reveal);
+            const expanded = canExpand && (expandedIds.has(id) || (view.reveal && Boolean(node?.children.length)));
             const context: RowContext = { id, depth: node?.depth ?? 0, selected: Boolean(selectable) && selected.has(id), expanded: Boolean(expanded) };
             const detailsId = `${tableId}-detail-${index}`;
             const activate = () => {
@@ -312,7 +314,7 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
             </>;
             return <Fragment key={id}>
               {props.renderRow ? props.renderRow(row, context, cells) : <TableRow component={components.Row ?? 'tr'} role="row" selected={context.selected}
-                data-depth={context.depth} aria-expanded={getSubRows && canExpand ? Boolean(expanded) : undefined} sx={props.rowSx?.(row)}
+                data-depth={context.depth} sx={props.rowSx?.(row)}
                 tabIndex={(selectOnClick && canSelect) || (props.expandOnClick && canExpand) ? 0 : undefined}
                 onClick={(event: MouseEvent<HTMLElement>) => {
                   props.onRowClick?.(row, context);

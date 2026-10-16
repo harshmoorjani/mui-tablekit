@@ -21,7 +21,7 @@ export function columnTree<Row>(definitions: readonly ColumnDefinition<Row>[]) {
   return { columns, paths, groups, definitions };
 }
 
-export function displayedColumns<Row>(tree: ReturnType<typeof columnTree<Row>>, expanded: readonly string[]) {
+export function displayedColumns<Row>(tree: ReturnType<typeof columnTree<Row>>, expanded: readonly string[], order: readonly string[] = []) {
   const result: Column<Row>[] = [];
   const open = new Set(expanded);
   const stack = [...tree.definitions].reverse();
@@ -33,7 +33,17 @@ export function displayedColumns<Row>(tree: ReturnType<typeof columnTree<Row>>, 
       else for (let index = column.columns.length - 1; index >= 0; index--) stack.push(column.columns[index]!);
     } else result.push(column);
   }
-  return result;
+  const positions = new Map<string, number>();
+  order.forEach((id, index) => { if (!positions.has(id)) positions.set(id, index); });
+  const ranks = new Map(positions);
+  for (const [id, parents] of tree.paths) {
+    for (const parent of parents) ranks.set(parent.id, Math.min(ranks.get(parent.id) ?? Infinity, positions.get(id) ?? Infinity));
+  }
+  for (const column of result) {
+    const inherited = (tree.paths.get(column.id) ?? []).reduce((position, parent) => Math.min(position, positions.get(parent.id) ?? Infinity), Infinity);
+    ranks.set(column.id, Math.min(ranks.get(column.id) ?? Infinity, inherited));
+  }
+  return result.sort((a, b) => ranks.get(a.id)! - ranks.get(b.id)!);
 }
 
 export interface HeaderCell<Row> {
@@ -41,13 +51,13 @@ export interface HeaderCell<Row> {
   header: string;
   column?: Column<Row>;
   group?: ColumnGroup<Row>;
-  leaves: readonly Column<Row>[];
+  leaves: Column<Row>[];
   colSpan: number;
   rowSpan: number;
 }
 
 export function headerRows<Row>(columns: readonly Column<Row>[], paths: Map<string, readonly ColumnGroup<Row>[]>, tableId: string) {
-  const levels = Math.max(...columns.map(column => paths.get(column.id)?.length ?? 0)) + 1;
+  const levels = columns.reduce((depth, column) => Math.max(depth, paths.get(column.id)?.length ?? 0), 0) + 1;
   const rows: HeaderCell<Row>[][] = Array.from({ length: levels }, () => []);
   const associations = new Map<string, string[]>();
   const leafIds = new Map([...paths.keys()].map((id, index) => [id, `${tableId}-leaf${index}`]));
@@ -60,7 +70,7 @@ export function headerRows<Row>(columns: readonly Column<Row>[], paths: Map<stri
       const group = parents[level];
       if (group && previous?.group === group && previous.leaves[0]?.sticky === column.sticky) {
         previous.colSpan++;
-        previous.leaves = [...previous.leaves, column];
+        previous.leaves.push(column);
       } else {
         previous = { id: group ? `${tableId}-h${level}-${rows[level]!.length}` : leafIds.get(column.id)!, header: group?.header ?? column.header,
           column: group ? undefined : column, group, leaves: [column], colSpan: 1, rowSpan: group ? 1 : levels - level };
