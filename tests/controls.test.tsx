@@ -60,6 +60,80 @@ it('opens immediate filters from the compact toolbar and retains applied values 
   expect(onAction.mock.calls.map(call => call[0])).toEqual(['init', 'filterOpen', 'filter', 'filterClose']);
 });
 
+it('keeps reset and close inside immediate filters and preserves the rest of the view', async () => {
+  const user = userEvent.setup(); const onAction = vi.fn();
+  render(<DataTable {...base} columns={[{ ...columns[0]!, filterable: true }]} onAction={onAction}
+    selectable defaultState={{ search: 'b', selectedIds: ['b'], filters: { id: 'b' } }} />);
+  const trigger = screen.getByRole('button', { name: 'Filters' });
+  await user.click(trigger);
+  const panel = within(screen.getByRole('dialog', { name: 'Filters' }));
+  await user.click(panel.getByRole('button', { name: 'Reset filters' }));
+  expect(panel.getByRole('textbox', { name: 'Filter Name' })).toHaveValue('');
+  expect(panel.getByRole('button', { name: 'Reset filters' })).toBeDisabled();
+  await user.click(panel.getByRole('button', { name: 'Close filters' }));
+  expect(trigger).toHaveFocus();
+  expect(screen.getByRole('searchbox')).toHaveValue('b');
+  expect(screen.getByRole('checkbox', { name: 'Select row b' })).toBeChecked();
+  expect(onAction.mock.calls.map(call => call[0])).toEqual(['init', 'filterOpen', 'filterReset', 'filterClose']);
+});
+
+it('supports an application-owned grouped ID picker on an excluded column with readable chips', async () => {
+  const user = userEvent.setup();
+  render(<DataTable {...base} columns={[...columns, {
+    id: 'scope', header: 'Group', excluded: true, value: row => row.id, filterType: 'multiselect',
+    filterOptions: [{ value: 'a', label: 'North / Alpha' }, { value: 'b', label: 'South / Beta' }],
+    renderFilter: ({ id, label, value, onChange }) => <label htmlFor={id}>{label}
+      <select id={id} multiple value={Array.isArray(value) ? value : []}
+        onChange={event => onChange([...event.target.selectedOptions].map(option => option.value))}>
+        <optgroup label="North"><option value="a">Alpha</option></optgroup>
+        <optgroup label="South"><option value="b">Beta</option></optgroup>
+      </select>
+    </label>,
+  }]} />);
+  await user.click(screen.getByRole('button', { name: 'Filters' }));
+  await user.selectOptions(screen.getByRole('listbox', { name: 'Filter Group' }), 'b');
+  await user.click(screen.getByRole('button', { name: 'Close filters' }));
+  expect(screen.getByText('b')).toBeVisible();
+  expect(screen.queryByText('a', { selector: 'td *' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('columnheader', { name: 'Group' })).not.toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: 'Remove Group: South / Beta' }));
+  expect(screen.getByText('a')).toBeVisible();
+});
+
+it('focuses newly opened search and exposes the active query while it is hidden', async () => {
+  const user = userEvent.setup();
+  render(<DataTable {...base} searchDisplay="toggle" />);
+  await user.click(screen.getByRole('button', { name: 'Show search' }));
+  expect(screen.getByRole('searchbox')).toHaveFocus();
+  await user.keyboard('b');
+  await user.click(screen.getByRole('button', { name: 'Hide search' }));
+  const trigger = screen.getByRole('button', { name: 'Show search: b' });
+  expect(trigger).toHaveAttribute('aria-pressed', 'true');
+  expect(trigger).toHaveAttribute('aria-expanded', 'false');
+  await user.click(trigger);
+  expect(screen.getByRole('searchbox')).toHaveFocus();
+  await user.clear(screen.getByRole('searchbox'));
+  await user.click(screen.getByRole('button', { name: 'Hide search' }));
+  expect(screen.getByRole('button', { name: 'Show search' })).toHaveAttribute('aria-pressed', 'false');
+});
+
+it('keeps column panel arrows within the same sticky zone', async () => {
+  const user = userEvent.setup();
+  render(<DataTable {...base} columnControls columns={[
+    { ...columns[0]!, sticky: 'left' }, { ...columns[0]!, id: 'middle', header: 'Middle' },
+    { ...columns[0]!, id: 'last', header: 'Last' }, { ...columns[0]!, id: 'pinned', header: 'Pinned', sticky: 'right' },
+  ]} />);
+  await user.click(screen.getByRole('button', { name: 'Columns' }));
+  expect(screen.getByRole('button', { name: 'Move Name next' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Move Middle previous' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Move Last next' })).toBeDisabled();
+  expect(screen.getByRole('button', { name: 'Move Pinned previous' })).toBeDisabled();
+  await user.click(screen.getByRole('button', { name: 'Move Middle next' }));
+  expect(screen.getByRole('button', { name: 'Move Middle previous' })).toHaveFocus();
+  await user.keyboard('{Escape}');
+  expect(screen.getAllByRole('columnheader').map(cell => cell.textContent)).toEqual(['Name', 'Last', 'Middle', 'Pinned']);
+});
+
 it('accepts custom toolbar button components and a full toolbar layout without losing actions', async () => {
   const user = userEvent.setup();
   const csv = vi.spyOn(output, 'downloadCsv').mockImplementation(() => {});

@@ -1,11 +1,11 @@
 import { useId, useState } from 'react';
-import { Button, Dialog, DialogActions, DialogContent, DialogTitle, Popover, Stack } from '@mui/material';
+import { Box, Button, Dialog, DialogActions, DialogContent, DialogTitle, Popover, Stack, Typography } from '@mui/material';
 import { ColumnFilter } from './ColumnFilter.js';
 import { ToolbarButton } from './ToolbarButton.js';
 import { activeFilter } from './model.js';
 import type { Column, TableComponents, TableLabels, TableState } from './types.js';
 
-export function FilterPanel<Row>({ columns, filters, labels, confirm, onChange, onOpen, onClose, checkbox, button, inline }: {
+export function FilterPanel<Row>({ columns, filters, labels, confirm, onChange, onOpen, onClose, onReset, checkbox, button, inline }: {
   columns: readonly Column<Row>[];
   filters: TableState['filters'];
   labels: TableLabels;
@@ -13,6 +13,7 @@ export function FilterPanel<Row>({ columns, filters, labels, confirm, onChange, 
   onChange: (filters: TableState['filters'], confirmed?: boolean) => void;
   onOpen?: () => void;
   onClose?: () => void;
+  onReset: () => void;
   checkbox?: TableComponents['Checkbox'];
   button?: TableComponents['ToolbarButton'];
   inline?: boolean;
@@ -23,14 +24,16 @@ export function FilterPanel<Row>({ columns, filters, labels, confirm, onChange, 
   const [draft, setDraft] = useState(filters);
   if (!columns.length) return null;
   const values = confirm ? draft : filters;
-  const controls = <Stack direction="row" useFlexGap sx={{ p: 2, gap: 2, flexWrap: 'wrap' }}>
-    {columns.map(column => <ColumnFilter key={column.id} column={column} labels={labels} checkbox={checkbox}
+  const controls = <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', sm: 'repeat(2, minmax(0, 1fr))' }, p: 2, gap: 2, alignItems: 'start' }}>
+    {columns.map(column => <Box key={column.id} sx={{ minWidth: 0, width: '100%', overflowWrap: 'anywhere',
+      gridColumn: column.renderFilter || column.filterType === 'numberRange' || column.filterType === 'dateRange' ? '1 / -1' : undefined }}>
+      <ColumnFilter column={column} labels={labels} checkbox={checkbox}
       value={Object.hasOwn(values, column.id) ? values[column.id] : undefined}
       onChange={value => {
         const next = { ...values, [column.id]: value };
         if (confirm) setDraft(next); else onChange(next);
-      }} />)}
-  </Stack>;
+      }} /></Box>)}
+  </Box>;
   if (!confirm && inline) return controls;
   const close = () => { setAnchor(null); onClose?.(); };
   return <>
@@ -46,6 +49,11 @@ export function FilterPanel<Row>({ columns, filters, labels, confirm, onChange, 
       </DialogActions>
     </Dialog> : <Popover open={open} anchorEl={anchor} onClose={close} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       transformOrigin={{ vertical: 'top', horizontal: 'right' }} slotProps={{ paper: { role: 'dialog', 'aria-label': labels.filters, sx: { width: 600, maxWidth: 'calc(100vw - 32px)' } } }}>
+      <Stack direction="row" useFlexGap sx={{ px: 2, py: 1, gap: 1, alignItems: 'center', flexWrap: 'wrap', position: 'sticky', top: 0, bgcolor: 'background.paper', zIndex: 1 }}>
+        <Typography variant="subtitle2" component="h2" sx={{ flexGrow: 1 }}>{labels.filters}</Typography>
+        <Button size="small" disabled={!Object.values(filters).some(activeFilter)} onClick={onReset}>{labels.resetFilters}</Button>
+        <Button size="small" onClick={close}>{labels.closeFilters}</Button>
+      </Stack>
       {controls}
     </Popover>}
   </>;

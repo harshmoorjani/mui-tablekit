@@ -62,6 +62,7 @@ export interface SearchControlProps {
   label: string;
   value: string;
   onChange: (value: string) => void;
+  autoFocus?: boolean;
 }
 
 export type TableAction = 'init' | 'search' | 'filter' | 'sort' | 'page' | 'pageSize' | 'selection' | 'expansion' | 'columns'
@@ -150,6 +151,7 @@ export interface TableLabels {
   filters: string;
   applyFilters: string;
   cancelFilters: string;
+  closeFilters: string;
   emptyFilterValue: string;
   filterChip: (header: string, value: string) => string;
   removeFilter: (label: string) => string;
@@ -168,6 +170,7 @@ export interface TableLabels {
   collapseLoaded: string;
   details: string;
   columns: string;
+  closeColumns: string;
   showColumn: (header: string) => string;
   moveColumn: (header: string, direction: 'previous' | 'next') => string;
   columnWidth: (header: string) => string;

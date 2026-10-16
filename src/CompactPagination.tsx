@@ -29,7 +29,7 @@ export function CompactPagination(inProps: TablePaginationProps & { pageLabel?: 
           value={typeof option === 'number' ? option : option.value}>{typeof option === 'number' ? option : option.label}</option>)}
       </TextField>
     </Stack>
-    <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+    <Divider orientation="vertical" flexItem sx={{ mx: 0.5, '@media (max-width: 359px)': { display: 'none' } }} />
     <Stack direction="row" sx={{ gap: 0.25, alignItems: 'center' }}>
       <label htmlFor={pageId}>{pageLabel}</label>
       {showFirstButton && button('first', 0, 'M6 6h2v12H6zm12 0-6 6 6 6z')}

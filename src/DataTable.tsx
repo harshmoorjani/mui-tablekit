@@ -31,14 +31,14 @@ const defaultLabels: TableLabels = {
   clearSelection: 'Clear selection', filter: header => `Filter ${header}`,
   filterMin: header => `${header} from`, filterMax: header => `${header} to`, clearFilter: 'Any',
   resetFilters: 'Reset filters', emptyFilterValue: '(empty)',
-  filters: 'Filters', applyFilters: 'Apply filters', cancelFilters: 'Cancel',
+  filters: 'Filters', applyFilters: 'Apply filters', cancelFilters: 'Cancel', closeFilters: 'Close filters',
   filterChip: (header, value) => `${header}: ${value}`, removeFilter: label => `Remove ${label}`,
   sort: header => `Sort by ${header}`, rowsPerPage: 'Rows/Page:', page: 'Page:',
   previousPage: 'Previous page', nextPage: 'Next page', firstPage: 'First page', lastPage: 'Last page',
   expandRow: id => `Expand row ${id}`, collapseRow: id => `Collapse row ${id}`,
   expandAll: 'Expand all filtered rows', collapseAll: 'Collapse all filtered rows',
   expandLoaded: 'Expand loaded rows', collapseLoaded: 'Collapse loaded rows',
-  details: 'Details', columns: 'Columns', showColumn: header => `Show ${header}`,
+  details: 'Details', columns: 'Columns', closeColumns: 'Close columns', showColumn: header => `Show ${header}`,
   moveColumn: (header, direction) => `Move ${header} ${direction}`,
   columnWidth: header => `${header} width (px)`,
   dragColumn: header => `Move ${header} (drag or use left/right arrows)`,
@@ -217,13 +217,15 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
   const inlineFilters = props.filterDisplay === 'inline' && props.filterMode !== 'confirm';
   const filterControl = <FilterPanel columns={filterColumns} filters={state.filters} labels={labels} confirm={props.filterMode === 'confirm'}
     inline={inlineFilters} checkbox={components.Checkbox} button={components.ToolbarButton}
+    onReset={() => update({ page: 0, filters: {} }, 'filterReset')}
     onOpen={() => emit('filterOpen')} onClose={() => emit('filterClose')} onChange={(filters, confirmed) => update({ page: 0, filters }, confirmed ? 'filterConfirm' : 'filter')} />;
   const controls: ToolbarControls = {
     search: searchEnabled ? <>
-      {props.searchDisplay === 'toggle' && <ToolbarButton component={components.ToolbarButton} action="search" active={searchOpen} expanded={searchOpen} label={searchOpen ? labels.hideSearch : labels.showSearch}
+      {props.searchDisplay === 'toggle' && <ToolbarButton component={components.ToolbarButton} action="search" active={searchOpen || Boolean(state.search.trim())} expanded={searchOpen}
+        label={searchOpen ? labels.hideSearch : state.search.trim() ? `${labels.showSearch}: ${state.search}` : labels.showSearch}
         onClick={() => { setSearchOpen(value => !value); emit(searchOpen ? 'searchClose' : 'searchOpen'); }} />}
       {(props.searchDisplay !== 'toggle' || searchOpen) && <SearchField value={state.search} label={labels.search}
-        delay={props.searchDebounceMs} render={props.renderSearch} onChange={search => update({ search, page: 0 })} />}
+        autoFocus={props.searchDisplay === 'toggle'} delay={props.searchDebounceMs} render={props.renderSearch} onChange={search => update({ search, page: 0 })} />}
     </> : null,
     filters: !inlineFilters && filterColumns.length ? filterControl : null,
     columns: columnControls ? <ColumnControls columns={layoutColumns} state={state} labels={labels} update={update} checkbox={components.Checkbox} button={components.ToolbarButton} /> : null,
