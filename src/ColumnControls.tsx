@@ -31,12 +31,15 @@ export function ColumnControls<Row>({ columns, state, labels, update }: {
                 onClick={() => move(index, -1)}>←</Button>
               <Button aria-label={labels.moveColumn(column.header, 'next')} disabled={index === columns.length - 1}
                 onClick={() => move(index, 1)}>→</Button>
-              <TextField type="number" size="small" label={labels.columnWidth(column.header)} sx={{ width: 160 }}
+              <TextField key={columnWidth(state.columnWidths, column.id)} type="number" size="small" label={labels.columnWidth(column.header)} sx={{ width: 160 }}
                 slotProps={{ htmlInput: { min: 80, max: 1000, step: 10 } }}
-                value={columnWidth(state.columnWidths, column.id)}
-                onChange={event => {
-                  const width = Number(event.target.value);
-                  if (width >= 80 && width <= 1000) update({ columnWidths: { ...state.columnWidths, [column.id]: width } });
+                defaultValue={columnWidth(state.columnWidths, column.id)}
+                onBlur={event => {
+                  const number = Number(event.target.value);
+                  const width = event.target.value !== '' && Number.isFinite(number)
+                    ? Math.min(1000, Math.max(80, number)) : columnWidth(state.columnWidths, column.id);
+                  event.target.value = String(width);
+                  update({ columnWidths: { ...state.columnWidths, [column.id]: width } });
                 }} />
             </Stack>
           );

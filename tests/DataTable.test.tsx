@@ -177,7 +177,10 @@ describe('DataTable', () => {
     await user.click(screen.getByRole('button', { name: 'Move Age previous' }));
     const headers = screen.getAllByRole('columnheader');
     expect(headers[1]).toHaveTextContent('Age');
-    fireEvent.change(screen.getByRole('spinbutton', { name: 'Age width (px)' }), { target: { value: '280' } });
+    const width = screen.getByRole('spinbutton', { name: 'Age width (px)' });
+    await user.clear(width);
+    await user.type(width, '280');
+    await user.tab();
     expect(document.querySelector('colgroup col:nth-child(2)')).toHaveStyle({ width: '280px' });
     expect(change).toHaveBeenLastCalledWith(expect.objectContaining({ selectedIds: ['a'], columnWidths: { age: 280 } }));
     await user.click(screen.getByRole('checkbox', { name: 'Show Name' }));
