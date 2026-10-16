@@ -23,6 +23,45 @@ const names = () => within(screen.getByRole('table', { name: 'People' }))
   .getAllByRole('row').slice(1).map(row => within(row).getAllByRole('cell')[0]?.textContent);
 
 describe('DataTable', () => {
+  it('reorders and resizes columns with keyboard and drag without losing row selection', async () => {
+    const user = userEvent.setup();
+    render(<DataTable {...base} columnReordering columnResizing selectable defaultState={{ selectedIds: ['a'] }} />);
+    const move = screen.getByRole('button', { name: 'Move Age (drag or use left/right arrows)' });
+    move.focus();
+    await user.keyboard('{ArrowLeft}');
+    expect(screen.getAllByRole('columnheader').slice(1).map(cell => cell.textContent?.replace('↔', ''))).toEqual(['Name', 'Age', 'Team']);
+    const resize = screen.getByRole('separator', { name: 'Resize Age (use left/right arrows)' });
+    resize.focus();
+    await user.keyboard('{ArrowRight}{ArrowRight}');
+    expect(resize).toHaveAttribute('aria-valuenow', '180');
+    await user.keyboard('{Home}{ArrowLeft}');
+    expect(resize).toHaveAttribute('aria-valuenow', '80');
+    await user.keyboard('{End}{ArrowRight}');
+    expect(resize).toHaveAttribute('aria-valuenow', '1000');
+    let payload = '';
+    const dataTransfer = { setData: (_type: string, value: string) => { payload = value; }, getData: () => payload };
+    fireEvent.dragStart(move, { dataTransfer });
+    fireEvent.drop(screen.getAllByRole('columnheader')[1]!, { dataTransfer });
+    expect(screen.getAllByRole('columnheader')[1]).toHaveTextContent('Age');
+    expect(screen.getByRole('checkbox', { name: 'Select row a' })).toBeChecked();
+    fireEvent.drop(screen.getAllByRole('columnheader')[1]!, { dataTransfer: { getData: () => 'foreign\nname' } });
+    expect(screen.getAllByRole('columnheader')[1]).toHaveTextContent('Age');
+  });
+  it('renders custom presentation and preserves table semantics in stacked mode', () => {
+    const { rerender } = render(<DataTable {...base} stickyHeader maxHeight={320} responsive="stacked"
+      header={<p>Directory header</p>} footer={<p>Directory footer</p>}
+      rowSx={row => ({ opacity: row.id === 'b' ? 0.5 : 1 })}
+      columns={[{ ...columns[0]!, headerSx: { color: 'red' }, cellSx: () => ({ fontWeight: 700 }) }]} />);
+    expect(screen.getByRole('table', { name: 'People' })).toHaveClass('MuiTable-stickyHeader');
+    expect(screen.getByRole('region', { name: 'People' })).toHaveStyle({ maxHeight: '320px' });
+    expect(screen.getByText('Directory header')).toBeVisible();
+    expect(screen.getByText('Directory footer')).toBeVisible();
+    expect(screen.getByText('Ben').closest('tr')).toHaveStyle({ opacity: '0.5' });
+    expect(screen.getByText('Ada').closest('td')).toHaveStyle({ fontWeight: '700' });
+    expect(screen.getByRole('columnheader')).toHaveStyle({ color: 'rgb(255, 0, 0)' });
+    rerender(<DataTable {...base} rows={[]} emptyContent={<a href="#reset">Try another filter</a>} />);
+    expect(within(screen.getByRole('status')).getByRole('link', { name: 'Try another filter' })).toBeVisible();
+  });
   it('supports single and conditional selection with keyboard row selection without activating nested controls', async () => {
     const user = userEvent.setup();
     const action = vi.fn();

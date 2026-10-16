@@ -3,11 +3,12 @@
 import { Fragment, useId, useMemo, useState } from 'react';
 import {
   Box, Button, Checkbox, Paper, Stack, Table, TableBody, TableCell,
-  TableContainer, TableHead, TablePagination, TableRow, TableSortLabel,
+  TableContainer, TableHead, TablePagination, TableRow,
   TextField, Typography,
 } from '@mui/material';
 import { cellText, columnWidth, createTableState, getOrderedColumns, getView, inferFilterOptions } from './model.js';
 import { ColumnControls } from './ColumnControls.js';
+import { ColumnHeader } from './ColumnHeader.js';
 import { ColumnFilter } from './ColumnFilter.js';
 import { FilterChips } from './FilterChips.js';
 import { downloadCsv, printRows } from './output.js';
@@ -29,6 +30,8 @@ const defaultLabels: TableLabels = {
   details: 'Details', columns: 'Columns', showColumn: header => `Show ${header}`,
   moveColumn: (header, direction) => `Move ${header} ${direction}`,
   columnWidth: header => `${header} width (px)`,
+  dragColumn: header => `Move ${header} (drag or use left/right arrows)`,
+  resizeColumn: header => `Resize ${header} (use left/right arrows)`,
   downloadCsv: 'Download CSV', downloadCsvPage: 'Download page CSV', print: 'Print', printPage: 'Print page',
   displayedRows: ({ from, to, count }) => `${from}–${to} of ${count}`,
 };
@@ -76,7 +79,7 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
   const layoutColumns = orderedColumns.filter(column => !column.excluded);
   const visibleColumns = layoutColumns.filter(column => !state.hiddenColumnIds.includes(column.id));
   if (!visibleColumns.length) throw new Error('MUI Tablekit: at least one column must be visible.');
-  const sized = columnControls || Object.keys(state.columnWidths).length > 0;
+  const sized = columnControls || props.columnResizing || Object.keys(state.columnWidths).length > 0;
   const utilityColumns = Number(Boolean(selectable)) + Number(Boolean(renderExpanded));
   const tableWidth = visibleColumns.reduce((width, column) => width + columnWidth(state.columnWidths, column.id), utilityColumns * 64);
   const pageSelected = pageIds.filter(id => selected.has(id)).length;
@@ -97,6 +100,7 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
 
   return (
     <Paper variant="outlined">
+      {props.header}
       {hasToolbar && <Stack direction="row" useFlexGap sx={{ p: 2, gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
         {searchEnabled && <TextField label={labels.search} size="small" type="search" value={state.search}
           onChange={event => update({ search: event.target.value, page: 0 })} />}
@@ -125,16 +129,30 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
       </Stack>}
       <FilterChips columns={orderedColumns} filters={state.filters} labels={labels} onChange={changeFilter}
         onReset={() => update({ page: 0, filters: {} })} />
-      <TableContainer>
-        <Table size="small" sx={sized ? { tableLayout: 'fixed', width: tableWidth, minWidth: '100%', '& td, & th': { overflowWrap: 'anywhere' } } : undefined}>
+      <TableContainer sx={{ maxHeight: props.maxHeight }} tabIndex={props.maxHeight ? 0 : undefined} role={props.maxHeight ? 'region' : undefined}
+        aria-label={props.maxHeight ? caption : undefined}>
+        <Table size="small" stickyHeader={props.stickyHeader} role="table" sx={{
+          ...(sized ? { tableLayout: 'fixed', width: tableWidth, minWidth: '100%', '& td, & th': { overflowWrap: 'anywhere' } } : {}),
+          '& .tablekit-label': { display: 'none' },
+          ...(props.responsive === 'stacked' ? { '@media (max-width: 599px)': {
+            display: 'block', width: '100%', minWidth: 0,
+            '& caption, & thead, & tbody, & tr': { display: 'block' },
+            '& colgroup': { display: 'none' },
+            '& thead tr': { display: 'flex', flexWrap: 'wrap' },
+            '& th': { display: 'block', position: 'static' },
+            '& tbody tr': { borderBottom: 1, borderColor: 'divider' },
+            '& td': { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, textAlign: 'start', overflowWrap: 'anywhere' },
+            '& .tablekit-label': { display: 'inline', fontWeight: 600 },
+          } } : {}),
+        }}>
           <caption style={{ captionSide: 'top', textAlign: 'start', padding: '0 16px 12px' }}>{caption}</caption>
           {sized && <colgroup>
             {renderExpanded && <col style={{ width: 64 }} />}
             {selectable && <col style={{ width: 64 }} />}
             {visibleColumns.map(column => <col key={column.id} style={{ width: columnWidth(state.columnWidths, column.id) }} />)}
           </colgroup>}
-          <TableHead>
-            <TableRow>
+          <TableHead role="rowgroup">
+            <TableRow role="row">
               {renderExpanded && <TableCell scope="col">
                 {expandAll ? <Button disabled={!expandableIds.length} aria-label={allExpanded ? labels.collapseAll : labels.expandAll}
                   onClick={() => update({ expandedIds: allExpanded
@@ -151,23 +169,12 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
                     disabled={!pageIds.length} onChange={(_, checked) => toggle(pageIds, checked)} />}
                 </TableCell>
               )}
-              {visibleColumns.map(column => (
-                <TableCell key={column.id} scope="col" align={column.align}
-                  sortDirection={state.sort?.columnId === column.id ? state.sort.direction : false}>
-                  {column.sortable === false ? column.header : (
-                    <TableSortLabel active={state.sort?.columnId === column.id}
-                      direction={state.sort?.columnId === column.id ? state.sort.direction : 'asc'}
-                      aria-label={labels.sort(column.header)}
-                      onClick={() => update({ page: 0, sort: state.sort?.columnId !== column.id
-                        ? { columnId: column.id, direction: 'asc' }
-                        : state.sort.direction === 'asc' ? { columnId: column.id, direction: 'desc' } : null })}
-                    >{column.header}</TableSortLabel>
-                  )}
-                </TableCell>
-              ))}
+              {visibleColumns.map(column => <ColumnHeader key={column.id} column={column} columns={layoutColumns}
+                state={state} labels={labels} update={update} tableId={tableId}
+                reorder={Boolean(props.columnReordering)} resize={Boolean(props.columnResizing)} />)}
             </TableRow>
           </TableHead>
-          <TableBody>
+          <TableBody role="rowgroup">
             {view.rows.map((row, index) => {
               const id = getRowId(row);
               const canSelect = Boolean(selectable) && isRowSelectable(row);
@@ -176,6 +183,7 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
               return (
                 <Fragment key={id}>
                   <TableRow selected={Boolean(selectable) && selected.has(id)}
+                    role="row" sx={props.rowSx?.(row)}
                     tabIndex={selectOnClick && canSelect ? 0 : undefined}
                     onClick={event => {
                       if (selectOnClick && canSelect && !(event.target as Element).closest('button,a,input,select,textarea,[role="button"],[role="checkbox"],[contenteditable]')) toggle([id], !selected.has(id));
@@ -202,8 +210,10 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
                       </TableCell>
                     )}
                     {visibleColumns.map(column => (
-                      <TableCell key={column.id} align={column.align}>
-                        {column.render ? column.render(column.value(row), row) : cellText(column.value(row))}
+                      <TableCell key={column.id} align={column.align} role="cell"
+                        sx={column.cellSx?.(row)}>
+                        {props.responsive === 'stacked' && <span className="tablekit-label" aria-hidden="true">{column.header}</span>}
+                        <span>{column.render ? column.render(column.value(row), row) : cellText(column.value(row))}</span>
                       </TableCell>
                     ))}
                   </TableRow>
@@ -217,7 +227,7 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
             })}
             {!view.rows.length && (
               <TableRow><TableCell colSpan={visibleColumns.length + utilityColumns}>
-                <Box role="status" sx={{ py: 3, textAlign: 'center' }}>{labels.empty}</Box>
+                <Box role="status" sx={{ py: 3, textAlign: 'center' }}>{props.emptyContent ?? labels.empty}</Box>
               </TableCell></TableRow>
             )}
           </TableBody>
@@ -229,6 +239,7 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
         getItemAriaLabel={type => ({ first: labels.firstPage, last: labels.lastPage, previous: labels.previousPage, next: labels.nextPage })[type]}
         onPageChange={(_, page) => update({ page })}
         onRowsPerPageChange={event => update({ pageSize: Number(event.target.value), page: 0 })} />}
+      {props.footer}
     </Paper>
   );
 }

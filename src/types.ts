@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import type { SxProps, Theme } from '@mui/material/styles';
 
 export type CellScalar = string | number | boolean | Date | null | undefined;
 export type CellValue = CellScalar | readonly CellScalar[];
@@ -29,6 +30,8 @@ export interface Column<Row> {
   searchable?: boolean;
   excluded?: boolean;
   align?: 'left' | 'center' | 'right';
+  headerSx?: SxProps<Theme>;
+  cellSx?: (row: Row) => SxProps<Theme>;
 }
 
 export interface TableState {
@@ -80,6 +83,8 @@ export interface TableLabels {
   showColumn: (header: string) => string;
   moveColumn: (header: string, direction: 'previous' | 'next') => string;
   columnWidth: (header: string) => string;
+  dragColumn: (header: string) => string;
+  resizeColumn: (header: string) => string;
   downloadCsv: string;
   downloadCsvPage: string;
   print: string;
@@ -105,10 +110,19 @@ interface BaseProps<Row> {
   isRowExpandable?: (row: Row) => boolean;
   expandAll?: boolean;
   columnControls?: boolean;
+  columnReordering?: boolean;
+  columnResizing?: boolean;
   csvFileName?: string;
   csvOptions?: CsvOptions;
   printable?: boolean;
   toolbar?: ReactNode;
+  header?: ReactNode;
+  footer?: ReactNode;
+  emptyContent?: ReactNode;
+  rowSx?: (row: Row) => SxProps<Theme>;
+  stickyHeader?: boolean;
+  maxHeight?: number | string;
+  responsive?: 'scroll' | 'stacked';
   labels?: Partial<TableLabels>;
   pageSizeOptions?: number[];
   search?: boolean;
