@@ -23,6 +23,48 @@ const names = () => within(screen.getByRole('table', { name: 'People' }))
   .getAllByRole('row').slice(1).map(row => within(row).getAllByRole('cell')[0]?.textContent);
 
 describe('DataTable', () => {
+  it('stages filter edits until Apply and discards them on cancel or escape', async () => {
+    const user = userEvent.setup();
+    render(<DataTable {...base} filterMode="confirm" defaultState={{ pageSize: 1, page: 2 }} />);
+    const open = async () => user.click(await screen.findByRole('button', { name: 'Filters' }));
+    await open();
+    let dialog = screen.getByRole('dialog', { name: 'Filters' });
+    await user.type(within(dialog).getByRole('textbox', { name: 'Filter Name' }), 'Ada');
+    expect(screen.getByText('Cleo')).toBeVisible();
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    await open();
+    dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByRole('textbox', { name: 'Filter Name' })).toHaveValue('');
+    await user.type(within(dialog).getByRole('textbox', { name: 'Filter Name' }), 'Ada');
+    await user.click(within(dialog).getByRole('button', { name: 'Apply filters' }));
+    expect(screen.getByText('1–1 of 1')).toBeVisible();
+    expect(await screen.findByRole('button', { name: 'Remove Name: Ada' })).toBeVisible();
+    await open();
+    dialog = screen.getByRole('dialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Reset filters' }));
+    await user.keyboard('{Escape}');
+    expect(screen.getByText('1–1 of 1')).toBeVisible();
+    await open();
+    dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByRole('textbox', { name: 'Filter Name' })).toHaveValue('Ada');
+    await user.click(within(dialog).getByRole('button', { name: 'Reset filters' }));
+    await user.click(within(dialog).getByRole('button', { name: 'Apply filters' }));
+    expect(screen.getByText('1–1 of 3')).toBeVisible();
+  });
+
+  it('applies confirmed server filters once and waits for its controlled parent', async () => {
+    const user = userEvent.setup();
+    const change = vi.fn();
+    render(<DataTable {...base} filterMode="confirm" mode="server" rowCount={100}
+      state={createTableState({ page: 2 })} onStateChange={change} />);
+    await user.click(screen.getByRole('button', { name: 'Filters' }));
+    await user.type(within(screen.getByRole('dialog')).getByRole('textbox', { name: 'Filter Name' }), 'Ada');
+    expect(change).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Apply filters' }));
+    expect(change).toHaveBeenCalledOnce();
+    expect(change).toHaveBeenCalledWith(expect.objectContaining({ page: 0, filters: { name: 'Ada' } }));
+    expect(screen.getByText('Ben')).toBeVisible();
+  });
   it('reorders and resizes columns with keyboard and drag without losing row selection', async () => {
     const user = userEvent.setup();
     render(<DataTable {...base} columnReordering columnResizing selectable defaultState={{ selectedIds: ['a'] }} />);

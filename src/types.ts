@@ -65,6 +65,9 @@ export interface TableLabels {
   filterMax: (header: string) => string;
   clearFilter: string;
   resetFilters: string;
+  filters: string;
+  applyFilters: string;
+  cancelFilters: string;
   emptyFilterValue: string;
   filterChip: (header: string, value: string) => string;
   removeFilter: (label: string) => string;
@@ -127,6 +130,7 @@ interface BaseProps<Row> {
   pageSizeOptions?: number[];
   search?: boolean;
   pagination?: boolean;
+  filterMode?: 'immediate' | 'confirm';
 }
 
 export type DataTableProps<Row> = BaseProps<Row> & (

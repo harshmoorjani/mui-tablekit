@@ -9,7 +9,7 @@ import {
 import { cellText, columnWidth, createTableState, getOrderedColumns, getView, inferFilterOptions } from './model.js';
 import { ColumnControls } from './ColumnControls.js';
 import { ColumnHeader } from './ColumnHeader.js';
-import { ColumnFilter } from './ColumnFilter.js';
+import { FilterPanel } from './FilterPanel.js';
 import { FilterChips } from './FilterChips.js';
 import { downloadCsv, printRows } from './output.js';
 import type { DataTableProps, FilterValue, TableLabels, TableState } from './types.js';
@@ -21,6 +21,7 @@ const defaultLabels: TableLabels = {
   clearSelection: 'Clear selection', filter: header => `Filter ${header}`,
   filterMin: header => `${header} from`, filterMax: header => `${header} to`, clearFilter: 'Any',
   resetFilters: 'Reset filters', emptyFilterValue: '(empty)',
+  filters: 'Filters', applyFilters: 'Apply filters', cancelFilters: 'Cancel',
   filterChip: (header, value) => `${header}: ${value}`, removeFilter: label => `Remove ${label}`,
   sort: header => `Sort by ${header}`, rowsPerPage: 'Rows per page:',
   previousPage: 'Previous page', nextPage: 'Next page',
@@ -120,13 +121,8 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
         )}
       </Stack>}
       {columnControls && <ColumnControls columns={layoutColumns} state={state} labels={labels} update={update} />}
-      {filterColumns.length > 0 && <Stack direction="row" useFlexGap sx={{ px: 2, pb: 2, gap: 2, flexWrap: 'wrap' }}>
-        {filterColumns.map(column => (
-          <ColumnFilter key={column.id} column={column} labels={labels}
-            value={Object.hasOwn(state.filters, column.id) ? state.filters[column.id] : undefined}
-            onChange={value => changeFilter(column.id, value)} />
-        ))}
-      </Stack>}
+      <FilterPanel columns={filterColumns} filters={state.filters} labels={labels} confirm={props.filterMode === 'confirm'}
+        onChange={filters => update({ page: 0, filters })} />
       <FilterChips columns={orderedColumns} filters={state.filters} labels={labels} onChange={changeFilter}
         onReset={() => update({ page: 0, filters: {} })} />
       <TableContainer sx={{ maxHeight: props.maxHeight }} tabIndex={props.maxHeight ? 0 : undefined} role={props.maxHeight ? 'region' : undefined}
@@ -213,7 +209,7 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
                       <TableCell key={column.id} align={column.align} role="cell"
                         sx={column.cellSx?.(row)}>
                         {props.responsive === 'stacked' && <span className="tablekit-label" aria-hidden="true">{column.header}</span>}
-                        <span>{column.render ? column.render(column.value(row), row) : cellText(column.value(row))}</span>
+                        <Box sx={{ minWidth: 0 }}>{column.render ? column.render(column.value(row), row) : cellText(column.value(row))}</Box>
                       </TableCell>
                     ))}
                   </TableRow>
