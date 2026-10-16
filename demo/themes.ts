@@ -1,5 +1,4 @@
 import { createTheme } from '@mui/material/styles';
-import type { PaletteMode } from '@mui/material';
 
 export const themes = [
   { id: 'canvas', label: 'Canvas · light', mode: 'light', primary: '#175cd3', background: '#f5f7fa', paper: '#ffffff' },
@@ -11,7 +10,7 @@ export const themes = [
 export function demoTheme(id: string) {
   const preset = themes.find(theme => theme.id === id) ?? themes[0];
   return createTheme({
-    palette: { mode: preset.mode as PaletteMode, contrastThreshold: 4.5,
+    palette: { mode: preset.mode, contrastThreshold: 4.5,
       primary: { main: preset.primary }, background: { default: preset.background, paper: preset.paper } },
     typography: { fontFamily: 'system-ui, sans-serif', button: { textTransform: 'none' } },
     shape: { borderRadius: 8 },

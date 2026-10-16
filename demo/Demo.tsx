@@ -10,6 +10,7 @@ import { createPeople, locations, statuses, teams } from './data.js';
 import type { Person } from './data.js';
 import { ServerDemo } from './ServerDemo.js';
 import { demoTheme, themes } from './themes.js';
+import { HierarchyDemo } from './HierarchyDemo.js';
 
 const options = (values: string[]) => values.map(value => ({ value, label: value }));
 const currency = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
@@ -41,6 +42,8 @@ const defaults = {
   expansion: true, columnControls: true, csv: true, print: true, customCells: true,
   columnReordering: false, columnResizing: false, sticky: false, stacked: false,
   confirm: false, clickSelection: false, filteredSelection: false, eligible: false, expandAll: false,
+  stickyColumns: false, checkboxFilters: false, toggleSearch: false, debounce: false, jump: false, caseSensitive: false,
+  hideCheckboxes: false, hideSelectAll: false,
 };
 const toggles: [keyof typeof defaults, string][] = [
   ['search', 'Enable search'], ['pagination', 'Enable pagination'], ['filters', 'Column filters'],
@@ -49,6 +52,9 @@ const toggles: [keyof typeof defaults, string][] = [
   ['columnReordering', 'Drag columns'], ['columnResizing', 'Resize handles'], ['sticky', 'Sticky header'],
   ['stacked', 'Stacked mobile layout'], ['confirm', 'Confirm filters'], ['clickSelection', 'Click to select'],
   ['filteredSelection', 'Select across filtered pages'], ['eligible', 'Only remote rows selectable/expandable'], ['expandAll', 'Expand all control'],
+  ['stickyColumns', 'Sticky columns'], ['checkboxFilters', 'Checkbox status filter'], ['toggleSearch', 'Toggle search field'],
+  ['debounce', 'Debounce search (200 ms)'], ['jump', 'Jump to page'], ['caseSensitive', 'Case-sensitive search'],
+  ['hideCheckboxes', 'Hide selection checkboxes'], ['hideSelectAll', 'Hide select-all checkbox'],
 ];
 
 export function Demo() {
@@ -60,7 +66,8 @@ export function Demo() {
   const [message, setMessage] = useState('');
   const [single, setSingle] = useState(false);
   const [allSkills, setAllSkills] = useState(false);
-  const [server, setServer] = useState(false);
+  const [example, setExample] = useState('people');
+  const [selectionToolbar, setSelectionToolbar] = useState<'inline' | 'above' | 'replace' | 'none'>('inline');
   const rows = useMemo(() => createPeople(count), [count]);
   const theme = useMemo(() => demoTheme(themeId), [themeId]);
   const activeColumns = useMemo(() => columns.map(column => ({
@@ -69,7 +76,9 @@ export function Demo() {
     sortable: features.sorting,
     filterMatch: allSkills ? 'all' as const : 'any' as const,
     render: features.customCells ? column.render : undefined,
-  })), [features.filters, features.sorting, features.customCells, allSkills]);
+    filterType: column.id === 'status' && features.checkboxFilters ? 'checkbox' as const : column.filterType,
+    sticky: features.stickyColumns ? column.id === 'name' ? 'left' as const : column.id === 'projects' ? 'right' as const : undefined : undefined,
+  })), [features.filters, features.sorting, features.customCells, features.checkboxFilters, features.stickyColumns, allSkills]);
 
   const toggleFeature = (key: keyof typeof defaults, checked: boolean) => {
     setFeatures(previous => ({ ...previous, [key]: checked }));
@@ -91,7 +100,8 @@ export function Demo() {
     setMessage('');
     setSingle(false);
     setAllSkills(false);
-    setServer(false);
+    setExample('people');
+    setSelectionToolbar('inline');
   };
 
   return <ThemeProvider theme={theme}>
@@ -110,7 +120,13 @@ export function Demo() {
           <Button onClick={reset}>Reset playground</Button>
         </Stack>
         <Stack direction="row" useFlexGap sx={{ gap: 2, flexWrap: 'wrap', alignItems: 'center', mb: 2 }}>
-          <TextField select label="Dataset size" size="small" sx={{ minWidth: 180 }} value={count}
+          <TextField select label="Example" size="small" sx={{ minWidth: 200 }} value={example} onChange={event => setExample(event.target.value)}>
+            <MenuItem value="people">People directory</MenuItem><MenuItem value="nested">Nested report</MenuItem><MenuItem value="server">Server adapter</MenuItem>
+          </TextField>
+          <TextField select label="Theme" size="small" value={themeId} sx={{ minWidth: 180 }} onChange={event => setThemeId(event.target.value)}>
+            {themes.map(preset => <MenuItem key={preset.id} value={preset.id}>{preset.label}</MenuItem>)}
+          </TextField>
+          {example === 'people' && <TextField select label="Dataset size" size="small" sx={{ minWidth: 180 }} value={count}
             onChange={event => {
               setCount(Number(event.target.value));
               setState(previous => ({ ...previous, page: 0, selectedIds: [], expandedIds: [] }));
@@ -119,21 +135,25 @@ export function Demo() {
             {[0, 100, 1000, 5000, 10000].map(size => <MenuItem key={size} value={size}>
               {size === 0 ? 'Empty dataset' : `${size.toLocaleString('en-US')} people`}
             </MenuItem>)}
-          </TextField>
-          <TextField select label="Page size" size="small" sx={{ minWidth: 130 }} value={state.pageSize} disabled={!features.pagination}
+          </TextField>}
+          {example === 'people' && <TextField select label="Page size" size="small" sx={{ minWidth: 130 }} value={state.pageSize} disabled={!features.pagination}
             onChange={event => setState(previous => ({ ...previous, pageSize: Number(event.target.value), page: 0 }))}>
             {[10, 25, 50, 100].map(size => <MenuItem key={size} value={size}>{size}</MenuItem>)}
-          </TextField>
-          <TextField select label="Theme" size="small" value={themeId} sx={{ minWidth: 180 }} onChange={event => setThemeId(event.target.value)}>
-            {themes.map(preset => <MenuItem key={preset.id} value={preset.id}>{preset.label}</MenuItem>)}
+          </TextField>}
+        </Stack>
+        {example === 'people' && <Box component="details">
+          <Box component="summary" sx={{ cursor: 'pointer', fontWeight: 600 }}>Table options</Box>
+          <Stack direction="row" useFlexGap sx={{ gap: 2, flexWrap: 'wrap', alignItems: 'center', my: 2 }}>
+          <TextField select label="Selection toolbar" size="small" value={selectionToolbar} sx={{ minWidth: 180 }}
+            onChange={event => setSelectionToolbar(event.target.value as typeof selectionToolbar)}>
+            {(['inline', 'above', 'replace', 'none'] as const).map(value => <MenuItem key={value} value={value}>{value}</MenuItem>)}
           </TextField>
           <FormControlLabel label="Show table state" control={<Switch checked={inspect} onChange={(_, checked) => setInspect(checked)} />} />
-          <FormControlLabel label="Show server adapter example" control={<Switch checked={server} onChange={(_, checked) => setServer(checked)} />} />
           <FormControlLabel label="Single selection" control={<Switch checked={single} onChange={(_, checked) => {
             setSingle(checked); setState(previous => ({ ...previous, selectedIds: [] }));
           }} />} />
           <FormControlLabel label="Match all selected skills" control={<Switch checked={allSkills} onChange={(_, checked) => setAllSkills(checked)} />} />
-        </Stack>
+          </Stack>
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(5, 1fr)' } }}>
           {toggles.map(([key, label]) => <FormControlLabel key={key} label={label} control={
             <Switch checked={features[key]} onChange={(_, checked) => toggleFeature(key, checked)} />
@@ -143,16 +163,20 @@ export function Demo() {
           Filters include text, team multiselect, location and status selects, numeric and date ranges, and a custom remote checkbox.
           Disabling filters or sorting clears those criteria.
         </Typography>
+        </Box>}
       </Paper>
 
-      {!features.pagination && count >= 1000 && <Alert severity="info" sx={{ mb: 2 }}>
+      {example === 'people' && !features.pagination && count >= 1000 && <Alert severity="info" sx={{ mb: 2 }}>
         Pagination is off: all matching rows render at once. Large datasets may take a moment.
       </Alert>}
 
-      <DataTable caption="People directory" rows={rows} columns={activeColumns} getRowId={row => row.id}
+      {example === 'people' && <DataTable caption="People directory" rows={rows} columns={activeColumns} getRowId={row => row.id}
         state={state} onStateChange={setState} pageSizeOptions={[10, 25, 50, 100]}
         search={features.search} pagination={features.pagination} selectable={features.selection && (single ? 'single' : true)}
         selectOnClick={features.clickSelection} selectAllScope={features.filteredSelection ? 'filtered' : 'page'}
+        selectionCheckboxes={!features.hideCheckboxes} selectAll={!features.hideSelectAll} selectionToolbar={selectionToolbar}
+        searchDisplay={features.toggleSearch ? 'toggle' : 'always'} searchDebounceMs={features.debounce ? 200 : 0}
+        caseSensitive={features.caseSensitive} jumpToPage={features.jump} fixedSelection={features.stickyColumns}
         isRowSelectable={row => !features.eligible || row.remote} isRowExpandable={row => !features.eligible || row.remote}
         expandAll={features.expandAll} columnReordering={features.columnReordering} columnResizing={features.columnResizing}
         stickyHeader={features.sticky} maxHeight={features.sticky ? 480 : undefined}
@@ -167,14 +191,15 @@ export function Demo() {
           <Typography variant="body2">Joined {row.joined} · {row.projects} projects · {row.remote ? 'Works remotely' : 'Office based'}</Typography>
         </Stack> : undefined}
         renderBulkActions={ids => <Button onClick={() => setMessage(`Selected IDs: ${ids.join(', ')}`)}>Show IDs</Button>}
-      />
+      />}
       {message && <Alert severity="info" role="status" sx={{ mt: 2, overflowWrap: 'anywhere' }} onClose={() => setMessage('')}>{message}</Alert>}
 
-      {inspect && <Paper component="section" aria-labelledby="state-heading" variant="outlined" sx={{ mt: 3, p: 2 }}>
+      {inspect && example === 'people' && <Paper component="section" aria-labelledby="state-heading" variant="outlined" sx={{ mt: 3, p: 2 }}>
         <Typography id="state-heading" variant="h6" component="h2">Live table state</Typography>
         <Box component="pre" sx={{ m: 0, mt: 2, overflow: 'auto', maxHeight: 360, fontSize: 13 }}>{JSON.stringify(state, null, 2)}</Box>
       </Paper>}
-      {server && <ServerDemo />}
+      {example === 'server' && <ServerDemo />}
+      {example === 'nested' && <HierarchyDemo />}
     </Container>
   </ThemeProvider>;
 }

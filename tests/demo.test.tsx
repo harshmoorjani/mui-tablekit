@@ -21,6 +21,7 @@ describe('demo playground', () => {
     expect(screen.getByText('1–25 of 1000')).toBeVisible();
     fireEvent.change(screen.getByRole('textbox', { name: 'Filter Name' }), { target: { value: 'no-such-person' } });
     expect(screen.getByText('No matching rows')).toBeVisible();
+    await user.click(screen.getByText('Table options'));
     await user.click(screen.getByRole('switch', { name: 'Column filters' }));
     expect(screen.queryByRole('textbox', { name: 'Filter Name' })).not.toBeInTheDocument();
     expect(screen.getByText('1–25 of 1000')).toBeVisible();
