@@ -2,6 +2,8 @@
 
 A small, typed React table built with MUI. Independent of mui-datatables, with a fresh API.
 
+[Live demo](https://harshmoorjani.github.io/mui-tablekit/) · [npm](https://www.npmjs.com/package/mui-tablekit)
+
 Inspired by [mui-datatables](https://github.com/gregnb/mui-datatables). Upstream development appears inactive: its latest default-branch commit is from [January 2023](https://github.com/gregnb/mui-datatables/commit/e09c39cb3c5713c7c157845b3d3e4b7d77c77649). MUI Tablekit aims to carry that useful feature set forward with current React and MUI, a smaller implementation, and its own typed API.
 
 An independent API, not a drop-in mui-datatables replacement. See [feature coverage](#feature-coverage) and the [release notes](CHANGELOG.md).
@@ -13,6 +15,8 @@ npm install mui-tablekit @mui/material @emotion/react @emotion/styled
 React and React DOM are required peers. See [supported versions](#usage).
 
 ## Try it
+
+[Open the live playground](https://harshmoorjani.github.io/mui-tablekit/) — no installation required.
 
 Requires Node.js 24. Install dependencies, then start the local demo:
 
@@ -27,7 +31,7 @@ Use the Example selector for the people directory (up to 10,000 synthetic rows),
 
 The Custom components example offers two runnable implementations for each of 23 component slots, renderers, and content hooks. Select a target and implementation, try its controls, and open Component code to inspect the actual example definitions.
 
-`npm run demo:build` builds the playground into `/docs`, with relative asset paths and `.nojekyll`. Commit that folder, then configure repository Settings → Pages → Deploy from a branch → `main` → `/docs`. No workflow file or external hosting account is required; GitHub runs its own Pages deployment internally. Select Canvas or Garden for light themes, Midnight or Plum for dark themes. Pages has not been enabled or deployed by these local changes.
+The playground is hosted on GitHub Pages. Select Canvas or Garden for light themes, Midnight or Plum for dark themes. To update it, run `npm run demo:build` and commit `/docs`. Pages deploys from `main` → `/docs`, with relative asset paths and `.nojekyll`. No repository workflow file or external hosting account is required; GitHub runs its own Pages deployment internally.
 
 ## Usage
 
