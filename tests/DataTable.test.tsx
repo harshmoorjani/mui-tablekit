@@ -465,9 +465,11 @@ it('selects all visible filtered client rows with pagination disabled, including
   const props = { ...base, selectable: true, search: false, pagination: false, onStateChange: change,
     defaultState: { page: 2, pageSize: 1, filters: { team: 'Engineering' } } };
   const { rerender } = render(<DataTable {...props} />);
-  expect(screen.getByRole('checkbox', { name: 'Select row b' })).toBeVisible();
-  expect(screen.getByRole('checkbox', { name: 'Select row c' })).toBeVisible();
+  expect(screen.getByText('Ben')).toBeVisible();
+  expect(screen.getByText('Cleo')).toBeVisible();
   await user.click(screen.getByRole('checkbox', { name: 'Select this page' }));
+  expect(screen.getByRole('checkbox', { name: 'Select row b' })).toBeChecked();
+  expect(screen.getByRole('checkbox', { name: 'Select row c' })).toBeChecked();
   expect(change).toHaveBeenLastCalledWith(expect.objectContaining({ page: 0, pageSize: 1, selectedIds: ['b', 'c'] }));
   expect(screen.getByRole('status')).toHaveTextContent('2 selected');
   rerender(<DataTable {...props} rows={[]} />);
