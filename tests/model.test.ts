@@ -100,3 +100,12 @@ it('uses exact select matching and inclusive UTC dates', () => {
   expect(getView(dated, [{ id: 'date', header: 'Date', value: row => row.value, filterType: 'dateRange' }],
     createTableState({ filters: { date: { min: '2025-01-01', max: '2025-01-02' } } })).rows).toEqual(dated.slice(0, 2));
 });
+
+it('rejects impossible calendar dates instead of rolling them into another day', () => {
+  const data = [{ value: '2025-02-30' }, { value: '2025-03-02' }, { value: '2025-02-30T12:00:00Z' }];
+  const dateColumns: Column<(typeof data)[number]>[] = [{ id: 'date', header: 'Date', value: row => row.value, filterType: 'dateRange' }];
+  expect(getView(data, dateColumns, createTableState({ filters: { date: { min: '2025-03-02', max: '2025-03-02' } } })).rows).toEqual([data[1]]);
+  expect(getView(data, dateColumns, createTableState({ filters: { date: { min: '2025-02-30', max: '' } } })).count).toBe(0);
+  expect(getView([{ value: '2024-02-29' }], dateColumns,
+    createTableState({ filters: { date: { min: '2024-02-29', max: '2024-02-29' } } })).count).toBe(1);
+});

@@ -32,6 +32,15 @@ function compareValues(a: CellValue, b: CellValue): number {
   return cellText(a).localeCompare(cellText(b), undefined, { numeric: true });
 }
 
+function dateNumber(value: CellValue): number {
+  if (value instanceof Date) return value.getTime();
+  if (typeof value !== 'string') return NaN;
+  const day = value.slice(0, 10);
+  const midnight = Date.parse(day);
+  // Date.parse otherwise turns February 30 into a day in March.
+  return Number.isFinite(midnight) && new Date(midnight).toISOString().slice(0, 10) === day ? Date.parse(value) : NaN;
+}
+
 function matchesFilter<Row>(column: Column<Row>, row: Row, filter: FilterValue | undefined): boolean {
   if (!filter || (Array.isArray(filter) && !filter.length) ||
       (typeof filter === 'object' && !Array.isArray(filter) && !filter.min && !filter.max)) return true;
@@ -40,12 +49,12 @@ function matchesFilter<Row>(column: Column<Row>, row: Row, filter: FilterValue |
   if (Array.isArray(filter)) return filter.includes(cellText(value));
   if (typeof filter === 'string') return column.filterType === 'select'
     ? cellText(value) === filter : cellText(value).toLocaleLowerCase().includes(filter.toLocaleLowerCase());
-  if (value == null || cellText(value).trim() === '') return false;
+  if (value == null || (typeof value === 'string' && value.trim() === '')) return false;
   const dates = column.filterType === 'dateRange';
-  const number = dates ? (value instanceof Date ? value.getTime() : Date.parse(cellText(value)))
+  const number = dates ? dateNumber(value)
     : typeof value === 'number' || typeof value === 'string' ? Number(value) : NaN;
-  const min = !filter.min ? -Infinity : dates ? Date.parse(`${filter.min}T00:00:00.000Z`) : Number(filter.min);
-  const max = !filter.max ? Infinity : dates ? Date.parse(`${filter.max}T23:59:59.999Z`) : Number(filter.max);
+  const min = !filter.min ? -Infinity : dates ? dateNumber(`${filter.min}T00:00:00.000Z`) : Number(filter.min);
+  const max = !filter.max ? Infinity : dates ? dateNumber(`${filter.max}T23:59:59.999Z`) : Number(filter.max);
   return Number.isFinite(number) && number >= min && number <= max;
 }
 
