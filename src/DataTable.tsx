@@ -38,6 +38,7 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
   const {
     rows, columns, getRowId, caption, selectable = false, renderBulkActions,
     toolbar, renderExpanded, columnControls = false, pageSizeOptions = [10, 25, 50],
+    search: searchEnabled = true, pagination = true,
   } = props;
   const [internalState, setInternalState] = useState(() => createTableState(props.defaultState));
   const state = props.state ?? internalState;
@@ -45,8 +46,11 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
   const labels = { ...defaultLabels, ...props.labels };
   const { search, filters, sort, page, pageSize } = state;
   const rowCount = props.mode === 'server' ? props.rowCount : undefined;
-  const view = useMemo(() => getView(rows, columns, { search, filters, sort, page, pageSize }, rowCount),
-    [rows, columns, search, filters, sort, page, pageSize, rowCount]);
+  const paginate = pagination || rowCount !== undefined;
+  const view = useMemo(() => getView(rows, columns, {
+    search: searchEnabled ? search : '', filters, sort,
+    page: paginate ? page : 0, pageSize: paginate ? pageSize : Math.max(rows.length, 1),
+  }, rowCount), [rows, columns, search, filters, sort, page, pageSize, rowCount, searchEnabled, paginate]);
   const selected = new Set(state.selectedIds);
   const ids = rows.map(getRowId);
   if (new Set(ids).size !== ids.length || ids.some(id => typeof id !== 'string' || !id)) {
@@ -76,12 +80,14 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
     update({ selectedIds: [...next] });
   };
   const changeFilter = (id: string, value: FilterValue) => update({ page: 0, filters: { ...state.filters, [id]: value } });
+  const hasToolbar = searchEnabled || (toolbar != null && toolbar !== false) ||
+    Boolean(props.csvFileName || props.printable || (selectable && selected.size));
 
   return (
     <Paper variant="outlined">
-      <Stack direction="row" useFlexGap sx={{ p: 2, gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
-        <TextField label={labels.search} size="small" type="search" value={state.search}
-          onChange={event => update({ search: event.target.value, page: 0 })} />
+      {hasToolbar && <Stack direction="row" useFlexGap sx={{ p: 2, gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+        {searchEnabled && <TextField label={labels.search} size="small" type="search" value={state.search}
+          onChange={event => update({ search: event.target.value, page: 0 })} />}
         {toolbar}
         {props.csvFileName && <Button onClick={() => downloadCsv(props.csvFileName!, visibleColumns, view.allRows)}>
           {props.mode === 'server' ? labels.downloadCsvPage : labels.downloadCsv}
@@ -96,7 +102,7 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
             <Button onClick={() => update({ selectedIds: [] })}>{labels.clearSelection}</Button>
           </>
         )}
-      </Stack>
+      </Stack>}
       {columnControls && <ColumnControls columns={orderedColumns} state={state} labels={labels} update={update} />}
       {filterColumns.length > 0 && <Stack direction="row" useFlexGap sx={{ px: 2, pb: 2, gap: 2, flexWrap: 'wrap' }}>
         {filterColumns.map(column => (
@@ -186,12 +192,12 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
           </TableBody>
         </Table>
       </TableContainer>
-      <TablePagination component="div" count={view.count} page={view.page}
+      {pagination && <TablePagination component="div" count={view.count} page={view.page}
         rowsPerPage={state.pageSize} rowsPerPageOptions={[...new Set([...pageSizeOptions, state.pageSize])].sort((a, b) => a - b)}
         labelRowsPerPage={labels.rowsPerPage} labelDisplayedRows={labels.displayedRows}
         getItemAriaLabel={type => ({ first: labels.firstPage, last: labels.lastPage, previous: labels.previousPage, next: labels.nextPage })[type]}
         onPageChange={(_, page) => update({ page })}
-        onRowsPerPageChange={event => update({ pageSize: Number(event.target.value), page: 0 })} />
+        onRowsPerPageChange={event => update({ pageSize: Number(event.target.value), page: 0 })} />}
     </Paper>
   );
 }

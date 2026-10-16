@@ -437,6 +437,70 @@ it('clears server criteria through controlled state without filtering the suppli
   expect(screen.queryByRole('button', { name: 'Reset filters' })).not.toBeInTheDocument();
 });
 
+it('disables client search and pagination without losing stored values or column criteria', async () => {
+  const user = userEvent.setup();
+  const change = vi.fn();
+  const props = { ...base, onStateChange: change, defaultState: { search: 'missing', page: 2, pageSize: 1,
+    filters: { team: 'Engineering' }, sort: { columnId: 'age', direction: 'asc' as const } } };
+  const { rerender } = render(<DataTable {...props} search={false} pagination={false} />);
+  expect(screen.queryByRole('searchbox')).not.toBeInTheDocument();
+  expect(screen.queryByRole('combobox', { name: 'Rows per page:' })).not.toBeInTheDocument();
+  expect(names()).toEqual(['Ben', 'Cleo']);
+  expect(change).not.toHaveBeenCalled();
+  rerender(<DataTable {...props} pagination={false} />);
+  expect(screen.getByRole('searchbox')).toHaveValue('missing');
+  expect(screen.getByText('No matching rows')).toBeVisible();
+  await user.clear(screen.getByRole('searchbox'));
+  expect(names()).toEqual(['Ben', 'Cleo']);
+  expect(change).toHaveBeenLastCalledWith(expect.objectContaining({ page: 0, pageSize: 1, search: '' }));
+  rerender(<DataTable {...props} />);
+  expect(names()).toEqual(['Ben']);
+  await user.click(screen.getByRole('button', { name: 'Next page' }));
+  expect(names()).toEqual(['Cleo']);
+});
+
+it('selects all visible filtered client rows with pagination disabled, including empty results', async () => {
+  const user = userEvent.setup();
+  const change = vi.fn();
+  const props = { ...base, selectable: true, search: false, pagination: false, onStateChange: change,
+    defaultState: { page: 2, pageSize: 1, filters: { team: 'Engineering' } } };
+  const { rerender } = render(<DataTable {...props} />);
+  expect(screen.getByRole('checkbox', { name: 'Select row b' })).toBeVisible();
+  expect(screen.getByRole('checkbox', { name: 'Select row c' })).toBeVisible();
+  await user.click(screen.getByRole('checkbox', { name: 'Select this page' }));
+  expect(change).toHaveBeenLastCalledWith(expect.objectContaining({ page: 0, pageSize: 1, selectedIds: ['b', 'c'] }));
+  expect(screen.getByRole('status')).toHaveTextContent('2 selected');
+  rerender(<DataTable {...props} rows={[]} />);
+  expect(screen.getByText('No matching rows')).toBeVisible();
+  expect(screen.getByRole('checkbox', { name: 'Select this page' })).toBeDisabled();
+});
+
+it('keeps server data and query ownership with the parent when search and pagination controls are disabled', async () => {
+  const user = userEvent.setup();
+  const change = vi.fn();
+  const state = createTableState({ page: 2, pageSize: 2, search: 'missing', filters: { team: 'missing' } });
+  render(<DataTable {...base} rows={rows.slice(0, 2)} mode="server" rowCount={100} state={state} onStateChange={change}
+    search={false} pagination={false} selectable toolbar={<button>Refresh</button>} />);
+  expect(screen.queryByRole('searchbox')).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Next page' })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Refresh' })).toBeVisible();
+  expect(screen.getByText('Ada')).toBeVisible();
+  expect(screen.getByText('Ben')).toBeVisible();
+  await user.click(screen.getByRole('checkbox', { name: 'Select row a' }));
+  expect(change).toHaveBeenLastCalledWith({ ...state, selectedIds: ['a'] });
+});
+
+it('exports the same filtered client rows displayed when search and pagination are disabled', async () => {
+  const user = userEvent.setup();
+  const csv = vi.spyOn(output, 'downloadCsv').mockImplementation(() => {});
+  try {
+    render(<DataTable {...base} search={false} pagination={false} csvFileName="people.csv"
+      defaultState={{ search: 'missing', page: 2, pageSize: 1, filters: { team: 'Engineering' } }} />);
+    await user.click(screen.getByRole('button', { name: 'Download CSV' }));
+    expect(csv).toHaveBeenCalledWith('people.csv', columns, [rows[1], rows[2]]);
+  } finally { csv.mockRestore(); }
+});
+
 // Server operations require a caller-owned query and total count.
 // @ts-expect-error server mode requires state and onStateChange
 const invalidServer: DataTableProps<Person> = { ...base, mode: 'server', rowCount: 100 };

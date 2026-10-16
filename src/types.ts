@@ -92,6 +92,8 @@ interface BaseProps<Row> {
   toolbar?: ReactNode;
   labels?: Partial<TableLabels>;
   pageSizeOptions?: number[];
+  search?: boolean;
+  pagination?: boolean;
 }
 
 export type DataTableProps<Row> = BaseProps<Row> & (
