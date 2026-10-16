@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { expect, it, vi } from 'vitest';
 import { createTableState, DataTable } from '../src/index.js';
@@ -7,6 +7,39 @@ import * as output from '../src/output.js';
 const rows = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
 const columns = [{ id: 'id', header: 'Name', value: (row: { id: string }) => row.id }];
 const base = { rows, columns, getRowId: (row: { id: string }) => row.id, caption: 'Controls' };
+
+it('keeps the title before controls, filters before search, and inline selection beside search', () => {
+  render(<DataTable {...base} columns={[{ ...columns[0]!, filterable: true }]} selectable csvFileName="rows.csv" defaultState={{ selectedIds: ['a'] }} />);
+  const title = screen.getByRole('heading', { name: 'Controls' });
+  const search = screen.getByRole('searchbox');
+  const before = (left: Element, right: Element) => Boolean(left.compareDocumentPosition(right) & Node.DOCUMENT_POSITION_FOLLOWING);
+  expect(screen.getByRole('table', { name: 'Controls' })).not.toContainElement(title);
+  expect(before(title, screen.getByRole('button', { name: 'Filters' }))).toBe(true);
+  expect(before(screen.getByRole('button', { name: 'Filters' }), search)).toBe(true);
+  expect(before(search, screen.getByText('1 selected'))).toBe(true);
+  expect(before(screen.getByText('1 selected'), screen.getByRole('button', { name: 'Download CSV' }))).toBe(true);
+});
+
+it('preserves pending debounced search while selection replaces the toolbar', () => {
+  vi.useFakeTimers();
+  try {
+    render(<DataTable {...base} selectable selectionToolbar="replace" searchDebounceMs={200} />);
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'b' } });
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select row a' }));
+    expect(screen.queryByRole('searchbox')).not.toBeInTheDocument();
+    act(() => vi.advanceTimersByTime(200));
+    expect(screen.getByText('b')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: 'Clear selection' }));
+    expect(screen.getByRole('searchbox')).toHaveValue('b');
+  } finally { vi.useRealTimers(); }
+});
+
+it('paints pinned cells with the custom row background over an opaque base', () => {
+  render(<DataTable {...base} columns={[{ ...columns[0]!, sticky: 'left' }]} rowSx={() => ({ bgcolor: '#ffeecc' })} />);
+  const cell = screen.getByRole('cell', { name: 'a' });
+  expect(cell).toHaveStyle({ position: 'sticky', backgroundColor: 'rgb(255, 255, 255)' });
+  expect(getComputedStyle(cell).backgroundImage).toMatch(/ffeecc|255, 238, 204/);
+});
 
 it('selects a page and page size from the compact footer and clamps empty results', async () => {
   const user = userEvent.setup();
@@ -60,7 +93,7 @@ it('opens immediate filters from the compact toolbar and retains applied values 
   expect(onAction.mock.calls.map(call => call[0])).toEqual(['init', 'filterOpen', 'filter', 'filterClose']);
 });
 
-it('keeps reset and close inside immediate filters and preserves the rest of the view', async () => {
+it('keeps reset inside immediate filters and preserves the rest of the view on dismissal', async () => {
   const user = userEvent.setup(); const onAction = vi.fn();
   render(<DataTable {...base} columns={[{ ...columns[0]!, filterable: true }]} onAction={onAction}
     selectable defaultState={{ search: 'b', selectedIds: ['b'], filters: { id: 'b' } }} />);
@@ -69,8 +102,8 @@ it('keeps reset and close inside immediate filters and preserves the rest of the
   const panel = within(screen.getByRole('dialog', { name: 'Filters' }));
   await user.click(panel.getByRole('button', { name: 'Reset filters' }));
   expect(panel.getByRole('textbox', { name: 'Filter Name' })).toHaveValue('');
-  expect(panel.getByRole('button', { name: 'Reset filters' })).toBeDisabled();
-  await user.click(panel.getByRole('button', { name: 'Close filters' }));
+  expect(panel.getByRole('button', { name: 'Reset filters' })).toHaveFocus();
+  await user.keyboard('{Escape}');
   expect(trigger).toHaveFocus();
   expect(screen.getByRole('searchbox')).toHaveValue('b');
   expect(screen.getByRole('checkbox', { name: 'Select row b' })).toBeChecked();
@@ -92,7 +125,7 @@ it('supports an application-owned grouped ID picker on an excluded column with r
   }]} />);
   await user.click(screen.getByRole('button', { name: 'Filters' }));
   await user.selectOptions(screen.getByRole('listbox', { name: 'Filter Group' }), 'b');
-  await user.click(screen.getByRole('button', { name: 'Close filters' }));
+  await user.keyboard('{Escape}');
   expect(screen.getByText('b')).toBeVisible();
   expect(screen.queryByText('a', { selector: 'td *' })).not.toBeInTheDocument();
   expect(screen.queryByRole('columnheader', { name: 'Group' })).not.toBeInTheDocument();

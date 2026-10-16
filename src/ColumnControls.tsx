@@ -41,7 +41,6 @@ export function ColumnControls<Row>({ columns, state, labels, update, checkbox: 
         slotProps={{ paper: { role: 'dialog', 'aria-label': labels.columns, sx: { width: 520, maxWidth: 'calc(100vw - 32px)' } } }}>
       <Stack direction="row" sx={{ px: 2, py: 1, alignItems: 'center', gap: 1, position: 'sticky', top: 0, bgcolor: 'background.paper', zIndex: 1 }}>
         <Typography variant="subtitle2" component="h2" sx={{ flexGrow: 1 }}>{labels.columns}</Typography>
-        <Button size="small" onClick={() => setAnchor(null)}>{labels.closeColumns}</Button>
       </Stack>
       <Stack spacing={1} sx={{ p: 2 }}>
         {columns.map((column, index) => {

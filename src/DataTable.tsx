@@ -31,14 +31,14 @@ const defaultLabels: TableLabels = {
   clearSelection: 'Clear selection', filter: header => `Filter ${header}`,
   filterMin: header => `${header} from`, filterMax: header => `${header} to`, clearFilter: 'Any',
   resetFilters: 'Reset filters', emptyFilterValue: '(empty)',
-  filters: 'Filters', applyFilters: 'Apply filters', cancelFilters: 'Cancel', closeFilters: 'Close filters',
+  filters: 'Filters', applyFilters: 'Apply filters', cancelFilters: 'Cancel',
   filterChip: (header, value) => `${header}: ${value}`, removeFilter: label => `Remove ${label}`,
   sort: header => `Sort by ${header}`, rowsPerPage: 'Rows/Page:', page: 'Page:',
   previousPage: 'Previous page', nextPage: 'Next page', firstPage: 'First page', lastPage: 'Last page',
   expandRow: id => `Expand row ${id}`, collapseRow: id => `Collapse row ${id}`,
   expandAll: 'Expand all filtered rows', collapseAll: 'Collapse all filtered rows',
   expandLoaded: 'Expand loaded rows', collapseLoaded: 'Collapse loaded rows',
-  details: 'Details', columns: 'Columns', closeColumns: 'Close columns', showColumn: header => `Show ${header}`,
+  details: 'Details', columns: 'Columns', showColumn: header => `Show ${header}`,
   moveColumn: (header, direction) => `Move ${header} ${direction}`,
   columnWidth: header => `${header} width (px)`,
   dragColumn: header => `Move ${header} (drag or use left/right arrows)`,
@@ -112,6 +112,9 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
   const visibleColumns = layoutColumns.filter(column => column.hideable === false || !state.hiddenColumnIds.includes(column.id));
   if (!visibleColumns.length) throw new Error('MUI Tablekit: at least one column must be visible.');
   const headers = headerRows(visibleColumns, columnModel.paths, tableId);
+  const headerStyle: SxProps<Theme> = { height: 40, fontWeight: 600, color: 'text.secondary', bgcolor: 'background.paper',
+    backgroundImage: `linear-gradient(${alpha(theme.palette.text.primary, 0.06)}, ${alpha(theme.palette.text.primary, 0.06)})`,
+    borderBottom: 2, borderColor: 'divider' };
   const filterColumns = getOrderedColumns(resolvedColumns, state.columnOrder)
     .filter(column => column.filterable ?? Boolean(column.filterType || column.renderFilter));
   const showSelection = Boolean(selectable) && props.selectionCheckboxes !== false;
@@ -136,10 +139,16 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
   let right = 0;
   visibleColumns.forEach(column => { if (column.sticky === 'left') { offsets.set(column.id, left); left += columnWidth(state.columnWidths, column.id); } });
   [...visibleColumns].reverse().forEach(column => { if (column.sticky === 'right') { offsets.set(column.id, right); right += columnWidth(state.columnWidths, column.id); } });
-  const stickyStyle = (column: Column<Row> | undefined, header: boolean, top = 0, selection = false, offset?: number): SxProps<Theme> => {
+  const stickyStyle = (column: Column<Row> | undefined, header: boolean, top = 0, selection = false, offset?: number,
+    rowPaint?: { backgroundColor?: unknown; backgroundImage?: unknown }): SxProps<Theme> => {
     const side = left + right + 80 > containerWidth ? undefined : offset !== undefined ? 'left' : column?.sticky;
+    const layer = (color: string) => `linear-gradient(${color}, ${color})`;
+    const backgroundImage = [selection && layer(alpha(theme.palette.primary.main, theme.palette.action.selectedOpacity)),
+      typeof rowPaint?.backgroundImage === 'string' && rowPaint.backgroundImage !== 'none' && rowPaint.backgroundImage,
+      typeof rowPaint?.backgroundColor === 'string' && layer(rowPaint.backgroundColor),
+      header && layer(alpha(theme.palette.text.primary, 0.06))].filter(Boolean).join(', ') || 'none';
     return { ...(side ? { position: 'sticky', [side]: offset ?? offsets.get(column!.id), zIndex: header ? 5 : 2,
-      bgcolor: 'background.paper', backgroundImage: selection ? `linear-gradient(${alpha(theme.palette.primary.main, theme.palette.action.selectedOpacity)}, ${alpha(theme.palette.primary.main, theme.palette.action.selectedOpacity)})` : 'none' } : {}),
+      bgcolor: 'background.paper', backgroundImage } : {}),
       ...(header && props.stickyHeader ? { position: 'sticky', top, zIndex: side ? 5 : 3, bgcolor: 'background.paper' } : {}) };
   };
   const head = useRef<HTMLTableSectionElement>(null);
@@ -234,65 +243,72 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
         props.csvOptions?.rows === 'all' ? allInputRows : props.csvOptions?.rows === 'page' ? view.rows : view.allRows, props.csvOptions)} /> : null,
     print: props.printable ? <ToolbarButton component={components.ToolbarButton} action="print" label={props.mode === 'server' ? labels.printPage : labels.print}
       onClick={() => printRows(caption, exportColumns(visibleColumns), view.allRows)} /> : null,
-    selection: props.selectionToolbar !== 'above' ? selectionBar : null,
+    selection: props.selectionToolbar !== 'above' && !replaced ? selectionBar : null,
     custom: toolbar,
   };
-  const hasToolbar = searchEnabled || columnControls || (!inlineFilters && filterColumns.length > 0) || (toolbar != null && toolbar !== false) || Boolean(props.csvFileName || props.printable || controls.selection || props.renderToolbar);
+  const hasToolbar = searchEnabled || columnControls || (!inlineFilters && filterColumns.length > 0) || (toolbar != null && toolbar !== false) || Boolean(props.csvFileName || props.printable || (selectionBar && props.selectionToolbar !== 'above') || props.renderToolbar);
   const Pagination = components.Pagination ?? CompactPagination;
   const Choice = components.Checkbox ?? Checkbox;
   const ExpandButton = components.ExpandButton ?? Button;
   const stacked = props.responsive === 'stacked' || props.responsive === 'simple';
   return <Paper variant="outlined">
+    <Typography id={`${tableId}-caption`} component="h2" variant="subtitle1" sx={{ px: 2, pt: 1.5, pb: 1, fontWeight: 600 }}>{caption}</Typography>
     {props.header}
     {selectionBar && props.selectionToolbar === 'above' && <Stack direction="row" useFlexGap sx={barSx}>{selectionBar}</Stack>}
     {hasToolbar && <Stack component={components.Toolbar ?? 'div'} direction="row" useFlexGap sx={barSx}>
-      {replaced ? selectionBar : props.renderToolbar ? props.renderToolbar(controls) : <>
-        {controls.search}<Box sx={{ flexGrow: 1 }} />{controls.custom}
-        <Stack direction="row" sx={{ gap: 0.5, alignItems: 'center' }}>{controls.filters}{controls.columns}{controls.csv}{controls.print}</Stack>
-        {controls.selection}
+      <Box sx={{ display: replaced ? 'none' : 'contents' }}>
+      {props.renderToolbar ? props.renderToolbar(controls) : <>
+        {controls.filters}{controls.search}{controls.selection}<Box sx={{ flexGrow: 1 }} />{controls.custom}
+        <Stack direction="row" useFlexGap sx={{ gap: 0.5, alignItems: 'center', flexWrap: 'wrap', maxWidth: '100%' }}>{controls.columns}{controls.csv}{controls.print}</Stack>
       </>}
+      </Box>
+      {replaced && selectionBar}
     </Stack>}
     {deleteError && <Alert severity="error" role="status">{labels.deleteFailed}</Alert>}
     {inlineFilters && filterControl}
     <FilterChips component={components.FilterChip} columns={getOrderedColumns(resolvedColumns, state.columnOrder)} filters={state.filters} labels={labels} onChange={changeFilter} onReset={() => update({ page: 0, filters: {} }, 'filterReset')} />
     <TableContainer ref={container} sx={{ maxHeight: props.maxHeight }} tabIndex={props.maxHeight || pinned ? 0 : undefined} role={props.maxHeight || pinned ? 'region' : undefined}
       aria-label={props.maxHeight || pinned ? caption : undefined}>
-      <Table component={components.Table ?? 'table'} size="small" stickyHeader={props.stickyHeader} role="table" sx={{
-        ...(sized ? { tableLayout: 'fixed', width: tableWidth, ...(pinned ? {} : { minWidth: '100%' }), '& td, & th': { overflowWrap: 'anywhere' } } : {}),
+      <Table component={components.Table ?? 'table'} size="small" stickyHeader={props.stickyHeader} role="table" aria-labelledby={`${tableId}-caption`} sx={{
+        tableLayout: 'fixed', width: sized ? tableWidth : '100%',
+        '& td, & th': { px: 1.5, py: 0.5 },
+        '& td': { height: 40 },
+        '& .MuiCheckbox-root': { p: 0.5 },
+        '& .tablekit-cell': { whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: '24px' },
+        '& .MuiTableCell-paddingCheckbox': { px: 0.5 },
         '& .tablekit-label': { display: 'none' },
         ...(stacked ? { '@media (max-width: 599px)': {
           display: 'block', width: '100%', minWidth: 0,
           '& caption, & thead, & tbody, & tfoot, & tr': { display: 'block' }, '& colgroup': { display: 'none' },
-          '& thead tr': { display: 'flex', flexWrap: 'wrap' }, '& th': { display: 'block', position: 'static' },
+          '& thead tr': { display: 'flex', flexWrap: 'wrap' }, '& th': { display: 'block', position: 'relative', left: 'auto', right: 'auto', top: 'auto', maxWidth: '100%' },
           '& th.MuiTableCell-paddingCheckbox': { minWidth: 52, flexShrink: 0 },
           '& tbody tr': { borderBottom: 1, borderColor: 'divider' },
           '& td': { display: 'flex', flexDirection: 'row', position: 'static', alignItems: 'center', justifyContent: 'space-between', gap: 2, textAlign: 'start', overflowWrap: 'anywhere' },
           '& .tablekit-label': { display: props.responsive === 'simple' ? 'none' : 'inline', fontWeight: 600 },
         } } : {}),
       }}>
-        <caption style={{ captionSide: 'top', textAlign: 'start', padding: '0 16px 12px' }}>{caption}</caption>
         {sized && <colgroup>{showExpansion && <col style={{ width: 64 }} />}{showSelection && <col style={{ width: 64 }} />}
           {visibleColumns.map(column => <col key={column.id} style={{ width: columnWidth(state.columnWidths, column.id) }} />)}</colgroup>}
         <TableHead ref={head} component={components.Head ?? 'thead'} role="rowgroup">
           {headers.rows.map((cells, level) => {
             const top = heights.slice(0, level).reduce((total, height) => total + height, 0);
             return <TableRow role="row" key={level}>
-              {level === 0 && showExpansion && <TableCell rowSpan={headers.rows.length} scope="col" role="columnheader" sx={stickyStyle(undefined, true, 0, false, pinUtilities ? 0 : undefined)}>
+              {level === 0 && showExpansion && <TableCell rowSpan={headers.rows.length} scope="col" role="columnheader" sx={styles(headerStyle, stickyStyle(undefined, true, 0, false, pinUtilities ? 0 : undefined))}>
                 {expandAll ? <ExpandButton disabled={!expandableIds.length} aria-label={props.mode === 'server'
                   ? allExpanded ? labels.collapseLoaded : labels.expandLoaded : allExpanded ? labels.collapseAll : labels.expandAll}
-                  onClick={() => update({ expandedIds: allExpanded ? state.expandedIds.filter(id => !expandableSet.has(id)) : [...new Set([...state.expandedIds, ...expandableIds])] })}>{allExpanded ? '−' : '+'}</ExpandButton>
+                  sx={{ minWidth: 24, width: 28, height: 28, p: 0 }} onClick={() => update({ expandedIds: allExpanded ? state.expandedIds.filter(id => !expandableSet.has(id)) : [...new Set([...state.expandedIds, ...expandableIds])] })}>{allExpanded ? '−' : '+'}</ExpandButton>
                   : <span style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden' }}>{labels.details}</span>}
               </TableCell>}
-              {level === 0 && showSelection && <TableCell rowSpan={headers.rows.length} padding="checkbox" role="columnheader" sx={stickyStyle(undefined, true, 0, false, pinUtilities ? Number(showExpansion) * 64 : undefined)}>
+              {level === 0 && showSelection && <TableCell rowSpan={headers.rows.length} padding="checkbox" role="columnheader" sx={styles(headerStyle, stickyStyle(undefined, true, 0, false, pinUtilities ? Number(showExpansion) * 64 : undefined))}>
                 {selectable !== 'single' && props.selectAll !== false && <Choice slotProps={{ input: { 'aria-label': selectAllScope === 'page' ? labels.selectPage : props.mode === 'server' ? labels.selectLoaded : labels.selectFiltered } }}
                   checked={pageIds.length > 0 && pageSelected === pageIds.length} indeterminate={pageSelected > 0 && pageSelected < pageIds.length}
                   disabled={deleting || !pageIds.length} onChange={(_, checked) => toggle(pageIds, checked)} />}
               </TableCell>}
               {cells.map(cell => cell.column ? <ColumnHeader key={cell.id} id={cell.id} rowSpan={cell.rowSpan} column={cell.column} columns={layoutColumns}
-                sx={stickyStyle(cell.column, true, top)} groupToggle={columnModel.groups.get(cell.column.id)?.value ? () => toggleGroup(cell.column!.id) : undefined}
+                sx={styles(headerStyle, stickyStyle(cell.column, true, top))} groupToggle={columnModel.groups.get(cell.column.id)?.value ? () => toggleGroup(cell.column!.id) : undefined}
                 state={state} labels={labels} update={update} tableId={tableId} reorder={Boolean(props.columnReordering)} resize={Boolean(props.columnResizing)} dragSource={dragSource} onDragSourceChange={setDragSource} />
                 : <TableCell key={cell.id} id={cell.id} scope="colgroup" role="columnheader" colSpan={cell.colSpan} rowSpan={cell.rowSpan}
-                  sx={styles(stickyStyle(cell.leaves[0]?.sticky === 'right' ? cell.leaves.at(-1) : cell.leaves[0], true, top), cell.group?.headerSx)}>
+                  sx={styles(headerStyle, stickyStyle(cell.leaves[0]?.sticky === 'right' ? cell.leaves.at(-1) : cell.leaves[0], true, top), cell.group?.headerSx)}>
                   {cell.group?.value ? <Button data-group-toggle={cell.group.id} aria-label={labels.collapseColumns(cell.header)} aria-expanded onClick={() => toggleGroup(cell.group!.id)}>− {cell.header}</Button> : cell.header}
                 </TableCell>)}
             </TableRow>;
@@ -305,6 +321,8 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
             const canExpand = isRowExpandable(row) && Boolean(renderExpanded || node?.children.length);
             const expanded = canExpand && (expandedIds.has(id) || (view.reveal && Boolean(node?.children.length)));
             const context: RowContext = { id, depth: node?.depth ?? 0, selected: Boolean(selectable) && selected.has(id), expanded: Boolean(expanded) };
+            const rowSx = props.rowSx?.(row);
+            const rowPaint = rowSx ? theme.unstable_sx(rowSx) : undefined;
             const detailsId = `${tableId}-detail-${index}`;
             const activate = () => {
               const patch: Partial<TableState> = {};
@@ -314,25 +332,26 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
               if (Object.keys(patch).length) update(patch);
             };
             const cells = <>
-              {showExpansion && <TableCell role="cell" padding="none" sx={stickyStyle(undefined, false, 0, context.selected, pinUtilities ? 0 : undefined)}>
+              {showExpansion && <TableCell role="cell" padding="none" sx={stickyStyle(undefined, false, 0, context.selected, pinUtilities ? 0 : undefined, rowPaint)}>
                 <ExpandButton disabled={!canExpand} aria-label={expanded ? labels.collapseRow(id) : labels.expandRow(id)} aria-expanded={Boolean(expanded)}
+                  sx={{ minWidth: 24, width: 28, height: 28, p: 0 }}
                   aria-controls={renderExpanded && expanded ? detailsId : undefined} onClick={() => toggleExpansion(id)}>{expanded ? '−' : '+'}</ExpandButton>
               </TableCell>}
-              {showSelection && <TableCell padding="checkbox" role="cell" sx={stickyStyle(undefined, false, 0, context.selected, pinUtilities ? Number(showExpansion) * 64 : undefined)}>
+              {showSelection && <TableCell padding="checkbox" role="cell" sx={stickyStyle(undefined, false, 0, context.selected, pinUtilities ? Number(showExpansion) * 64 : undefined, rowPaint)}>
                 <Choice slotProps={{ input: { 'aria-label': labels.selectRow(id) } }} disabled={deleting || !canSelect} checked={selected.has(id)} onChange={(_, checked) => toggle([id], checked)} />
               </TableCell>}
               {visibleColumns.map((column, columnIndex) => <TableCell component={components.Cell ?? 'td'} role="cell" key={column.id} align={column.align}
                 headers={headers.associations.get(column.id)?.join(' ')} onClick={() => props.onCellClick?.(row, column, context)}
-                sx={styles(stickyStyle(column, false, 0, context.selected), column.cellSx?.(row))}>
+                sx={styles(stickyStyle(column, false, 0, context.selected, undefined, rowPaint), column.cellSx?.(row))}>
                 {stacked && <span className="tablekit-label" aria-hidden="true">{[...(columnModel.paths.get(column.id)?.map(parent => parent.header) ?? []), column.header].join(' / ')}</span>}
-                <Box sx={{ minWidth: 0, ...(columnIndex === 0 && context.depth ? { pl: context.depth * 2 } : {}) }}>
+                <Box className="tablekit-cell" title={cellText(column.value(row))} sx={{ minWidth: 0, ...(columnIndex === 0 && context.depth ? { pl: context.depth * 2 } : {}) }}>
                   {column.render ? column.render(column.value(row), row) : cellText(column.value(row))}
                 </Box>
               </TableCell>)}
             </>;
             return <Fragment key={id}>
               {props.renderRow ? props.renderRow(row, context, cells) : <TableRow component={components.Row ?? 'tr'} role="row" selected={context.selected}
-                data-depth={context.depth} sx={props.rowSx?.(row)}
+                data-depth={context.depth} sx={rowSx}
                 tabIndex={(selectOnClick && canSelect) || (props.expandOnClick && canExpand) ? 0 : undefined}
                 onClick={(event: MouseEvent<HTMLElement>) => {
                   props.onRowClick?.(row, context);

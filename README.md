@@ -85,7 +85,7 @@ Active filters produce removable chips, including on hidden columns. Multiselect
 
 Filters open from the toolbar icon in a popover and apply immediately by default. Set `filterDisplay="inline"` to show the controls beneath the toolbar. `filterMode="confirm"` uses a Filters dialog instead: edits and its reset button affect a private draft. Apply commits the draft once and resets the page; Cancel, Escape, or clicking outside discards it. Chips outside the dialog still remove applied filters immediately. Labels include `filters`, `applyFilters`, and `cancelFilters`. Custom widgets must treat their supplied value as immutable.
 
-The immediate popover keeps Reset filters and Close filters reachable while scrolling. Built-in fields use equal-width columns on desktop and stack on mobile; custom widgets get a full row and own their internal layout. Customize the close action with `labels.closeFilters`.
+The immediate popover keeps Reset filters reachable while scrolling; clicking outside or pressing Escape dismisses it. Built-in fields use equal-width columns on desktop and stack on mobile; custom widgets get a full row and own their internal layout. Inline filters use compact fields and horizontal checkbox choices.
 
 ### Search and pagination switches
 
@@ -160,7 +160,7 @@ Pass `renderExpanded(row)` to enable row details. Expansion uses stable row IDs 
 
 Set `columnControls` to show a toolbar icon opening visibility, ordering, and width controls. Checkboxes preserve at least one visible column; move buttons support keyboard operation. Width inputs apply on blur and clamp to 80–1000 pixels. Columns can stretch to fill the table container. These controls do not alter selection, expansion, sorting, or filters.
 
-Column-panel arrows stay within the same sticky zone and keep focus on an enabled move button after reordering. The panel uses aligned controls and a persistent close action, labeled by `labels.closeColumns`.
+Column-panel arrows stay within the same sticky zone and keep focus on an enabled move button after reordering. Its controls align across rows; clicking outside or pressing Escape dismisses the panel.
 
 Layout is also controllable through `hiddenColumnIds`, `columnOrder`, and `columnWidths` without the panel. At least one column must remain visible. Unknown/duplicate order IDs are ignored, and new columns are appended in definition order. Only the supplied column definitions can appear.
 
@@ -246,17 +246,19 @@ The runnable [server example](demo/ServerDemo.tsx) shows a 200 ms search debounc
 
 Components inherit the application's MUI theme. Controls wrap and the default `responsive="scroll"` keeps the table horizontally scrollable on narrow screens. `responsive="stacked"` stacks labeled cells below 600 px, retaining header controls and explicit table semantics. `stickyHeader` and `maxHeight={480}` enable a bounded scrolling body with sticky column headers; stacked mobile headers remain in normal flow. The scroll region is keyboard focusable when a height limit is set.
 
-Use `rowSx(row)`, column `cellSx(row)`, and column `headerSx` for MUI theme-aware styling. `header` and `footer` accept content above/below the table controls; `emptyContent` replaces the empty-state body. The visible `caption` remains the accessible table name. Custom renderers must maintain contrast and accessible interactions.
+Use `rowSx(row)`, column `cellSx(row)`, and column `headerSx` for MUI theme-aware styling. `header` and `footer` accept content above/below the table controls; `emptyContent` replaces the empty-state body. The visible `caption` is a heading above the controls, linked to the table's accessible name, and stays outside the scrolling body. Custom renderers must maintain contrast and accessible interactions.
+
+Default rows stay compact by truncating overflowing cell text with an ellipsis; the full accessor text is available on hover. For multiline content, use custom rendering or override `whiteSpace` on `.tablekit-cell` through `cellSx`. Header controls stay on one line, sort icons stay on the right, and resize grips follow the column edge.
 
 Pass `labels` to replace search, filter, sort, selection, expansion, column-control, output, empty-state, and pagination text; function-valued labels support counts and row IDs. Header handles and the column panel both offer keyboard operation.
 
-The table has a visible caption, scoped column headers, sort announcements, labeled inputs and checkboxes, keyboard-operable sorting, and status text for selection and empty results. Automated interaction checks do not replace screen-reader and real-browser qualification before release.
+The table has a visible title, scoped column headers, sort announcements, labeled inputs and checkboxes, keyboard-operable sorting, and status text for selection and empty results. Automated interaction checks do not replace screen-reader and real-browser qualification before release.
 
 Independent browser checks passed in Playwright Chromium 131 and Firefox 132. Chromium checks covered all four themes at 1440 px and 390 px, with no page errors, page overflow, or automated WCAG A/AA findings in the tested states. Firefox covered the 10,000-row example, search/sort, nested expansion and mobile layout. WebKit could not start because this host lacks its required shared libraries; Safari, manual screen-reader use, and the native print dialog remain unverified. Browser engines and audit tools are temporary local test tools, not package dependencies.
 
 ### Rendering and control overrides
 
-The default toolbar puts search and icon actions in one compact row, wrapping when needed. Icons retain accessible names, tooltips and active/open states. No icon package is required.
+The default toolbar places filters before search, inline selection actions immediately after search, and output actions on the right. Controls wrap when needed. Icons retain accessible names, tooltips and active/open states. No icon package is required.
 
 Pass your own React component through `components.ToolbarButton` to replace individual action buttons. Its `action` distinguishes `search`, `filters`, `columns`, `csv`, and `print`; return different components for each if needed. `renderToolbar` replaces the entire layout and receives the working search, filters, columns, CSV, print, selection and custom-content nodes. `components.Toolbar` changes only the wrapper.
 

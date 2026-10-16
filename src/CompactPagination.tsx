@@ -18,9 +18,12 @@ export function CompactPagination(inProps: TablePaginationProps & { pageLabel?: 
     </IconButton></span></Tooltip>;
   };
   const selectProps = { native: true, disableUnderline: true };
-  const selectSx = { minWidth: 40, '& .MuiInputBase-root': { fontSize: 'inherit' } };
+  const selectSx = { minWidth: 40,
+    '& .MuiInputBase-root': { height: 28, fontSize: { xs: '0.75rem', sm: '0.8125rem' }, lineHeight: '28px' },
+    '& .MuiNativeSelect-select': { height: '28px', minHeight: '0 !important', boxSizing: 'border-box', py: 0, pl: 0.5, pr: 2.5, lineHeight: '28px' },
+    '& .MuiNativeSelect-icon': { fontSize: 18, right: 0, top: 'calc(50% - 9px)' } };
   return <Stack direction="row" useFlexGap sx={{ px: { xs: 1, sm: 2 }, py: 1, gap: 0.5, alignItems: 'center', justifyContent: 'flex-end', flexWrap: 'wrap',
-    fontSize: { xs: '0.75rem', sm: '0.8125rem' }, color: 'text.secondary', colorScheme: theme => theme.palette.mode }}>
+    fontSize: { xs: '0.75rem', sm: '0.8125rem' }, lineHeight: '28px', '& label': { lineHeight: '28px', whiteSpace: 'nowrap' }, color: 'text.secondary', colorScheme: theme => theme.palette.mode }}>
     <Stack direction="row" sx={{ gap: 0.5, alignItems: 'center' }}>
       <label htmlFor={sizeId}>{labelRowsPerPage}</label>
       <TextField id={sizeId} select variant="standard" size="small" value={rowsPerPage} disabled={disabled}
@@ -38,7 +41,7 @@ export function CompactPagination(inProps: TablePaginationProps & { pageLabel?: 
         onChange={event => onPageChange(null, Number(event.target.value))} slotProps={{ select: selectProps }} sx={selectSx}>
         {Array.from({ length: pages }, (_, index) => <option key={index} value={index}>{index + 1}</option>)}
       </TextField> : <TextField id={pageId} key={page} type="number" variant="standard" size="small" defaultValue={page + 1} disabled={disabled}
-        sx={{ width: 72 }} slotProps={{ htmlInput: { min: 1, max: pages, step: 1, 'aria-label': jumpToPage ? jumpLabel : undefined } }}
+        sx={{ ...selectSx, width: 72 }} slotProps={{ htmlInput: { min: 1, max: pages, step: 1, 'aria-label': jumpToPage ? jumpLabel : undefined } }}
         onKeyDown={event => { if (event.key === 'Enter') (event.target as HTMLInputElement).blur(); }}
         onBlur={event => {
           const value = Number(event.target.value);

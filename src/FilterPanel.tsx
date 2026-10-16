@@ -24,10 +24,10 @@ export function FilterPanel<Row>({ columns, filters, labels, confirm, onChange, 
   const [draft, setDraft] = useState(filters);
   if (!columns.length) return null;
   const values = confirm ? draft : filters;
-  const controls = <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'minmax(0, 1fr)', sm: 'repeat(2, minmax(0, 1fr))' }, p: 2, gap: 2, alignItems: 'start' }}>
-    {columns.map(column => <Box key={column.id} sx={{ minWidth: 0, width: '100%', overflowWrap: 'anywhere',
-      gridColumn: column.renderFilter || column.filterType === 'numberRange' || column.filterType === 'dateRange' ? '1 / -1' : undefined }}>
-      <ColumnFilter column={column} labels={labels} checkbox={checkbox}
+  const controls = <Box sx={{ display: inline ? 'flex' : 'grid', flexWrap: 'wrap', gridTemplateColumns: { xs: 'minmax(0, 1fr)', sm: 'repeat(2, minmax(0, 1fr))' }, p: 2, gap: 1.5, alignItems: 'start' }}>
+    {columns.map(column => <Box key={column.id} sx={{ minWidth: 0, maxWidth: '100%', width: inline ? { xs: '100%', sm: column.filterType === 'checkbox' ? 'auto' : column.filterType === 'numberRange' || column.filterType === 'dateRange' ? 360 : 180 } : '100%', overflowWrap: 'anywhere',
+      gridColumn: !inline && (column.renderFilter || column.filterType === 'numberRange' || column.filterType === 'dateRange') ? '1 / -1' : undefined }}>
+      <ColumnFilter column={column} labels={labels} checkbox={checkbox} inline={inline}
       value={Object.hasOwn(values, column.id) ? values[column.id] : undefined}
       onChange={value => {
         const next = { ...values, [column.id]: value };
@@ -51,8 +51,7 @@ export function FilterPanel<Row>({ columns, filters, labels, confirm, onChange, 
       transformOrigin={{ vertical: 'top', horizontal: 'right' }} slotProps={{ paper: { role: 'dialog', 'aria-label': labels.filters, sx: { width: 600, maxWidth: 'calc(100vw - 32px)' } } }}>
       <Stack direction="row" useFlexGap sx={{ px: 2, py: 1, gap: 1, alignItems: 'center', flexWrap: 'wrap', position: 'sticky', top: 0, bgcolor: 'background.paper', zIndex: 1 }}>
         <Typography variant="subtitle2" component="h2" sx={{ flexGrow: 1 }}>{labels.filters}</Typography>
-        <Button size="small" disabled={!Object.values(filters).some(activeFilter)} onClick={onReset}>{labels.resetFilters}</Button>
-        <Button size="small" onClick={close}>{labels.closeFilters}</Button>
+        <Button size="small" onClick={onReset}>{labels.resetFilters}</Button>
       </Stack>
       {controls}
     </Popover>}

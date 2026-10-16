@@ -44,7 +44,7 @@ export function ColumnHeader<Row>({ column, columns, state, labels, update, reor
   };
   return <TableCell id={id} rowSpan={rowSpan} scope="col" role="columnheader" align={column.align}
     data-drop-side={dragSource && dropSide && canMove(dragSource, column.id) ? dropSide : undefined}
-    sx={[...(Array.isArray(sx) ? sx : [sx ?? {}]), ...(Array.isArray(column.headerSx) ? column.headerSx : [column.headerSx ?? {}]),
+    sx={[{ position: 'relative', whiteSpace: 'nowrap', overflow: 'hidden', pr: resize ? 2 : 1.5 }, ...(Array.isArray(sx) ? sx : [sx ?? {}]), ...(Array.isArray(column.headerSx) ? column.headerSx : [column.headerSx ?? {}]),
       dragSource && dropSide && canMove(dragSource, column.id) ? { boxShadow: theme => `inset ${dropSide === 'before' ? 3 : -3}px 0 ${theme.palette.primary.main}` } : {}]}
     sortDirection={state.sort?.columnId === column.id ? state.sort.direction : false}
     onDragOver={event => {
@@ -62,9 +62,10 @@ export function ColumnHeader<Row>({ column, columns, state, labels, update, reor
       if (data.startsWith(prefix)) move(data.slice(prefix.length), column.id, dropSide);
       setDropSide(undefined); onDragSourceChange();
     }}>
-    {groupToggle && <Button data-group-toggle={column.id} aria-label={labels.expandColumns(column.header)} aria-expanded={false} onClick={groupToggle}>+</Button>}
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0, justifyContent: column.align === 'right' ? 'flex-end' : column.align === 'center' ? 'center' : 'flex-start' }}>
+    {groupToggle && <Button size="small" sx={{ minWidth: 20, width: 20, p: 0, flexShrink: 0 }} data-group-toggle={column.id} aria-label={labels.expandColumns(column.header)} aria-expanded={false} onClick={groupToggle}>+</Button>}
     {reorder && column.draggable !== false && <Button size="small" draggable aria-label={labels.dragColumn(column.header)}
-      sx={{ minWidth: 28, cursor: 'grab' }}
+      sx={{ minWidth: 20, width: 20, p: 0, flexShrink: 0, cursor: 'grab', color: 'text.secondary' }}
       onDragStart={event => { event.dataTransfer.setData('text/plain', `${tableId}\n${column.id}`); event.dataTransfer.effectAllowed = 'move'; onDragSourceChange(column.id); }}
       onDragEnd={() => { onDragSourceChange(); setDropSide(undefined); }}
       onKeyDown={event => {
@@ -73,18 +74,20 @@ export function ColumnHeader<Row>({ column, columns, state, labels, update, reor
         const target = columns[columns.findIndex(entry => entry.id === column.id) + (event.key === 'ArrowLeft' ? -1 : 1)];
         if (target) move(column.id, target.id);
       }}>↔</Button>}
-    {column.sortable === false ? column.renderHeader?.(column) ?? column.header : <TableSortLabel active={state.sort?.columnId === column.id}
+    {column.sortable === false ? <Box component="span" title={column.header} sx={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{column.renderHeader?.(column) ?? column.header}</Box> : <TableSortLabel active={state.sort?.columnId === column.id}
+      title={column.header} sx={{ flexDirection: 'row', minWidth: 0, maxWidth: '100%', '& .MuiTableSortLabel-icon': { flexShrink: 0, fontSize: 16, mx: 0.25 } }}
       direction={state.sort?.columnId === column.id ? state.sort.direction : 'asc'} aria-label={labels.sort(column.header)}
       onClick={() => {
         const first = column.sortDescFirst ? 'desc' : 'asc';
         update({ page: 0, sort: state.sort?.columnId !== column.id ? { columnId: column.id, direction: first }
           : state.sort.direction === first ? { columnId: column.id, direction: first === 'asc' ? 'desc' : 'asc' }
           : column.sortReset === false ? { columnId: column.id, direction: first } : null });
-      }}>{column.renderHeader?.(column) ?? column.header}</TableSortLabel>}
+      }}><Box component="span" sx={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>{column.renderHeader?.(column) ?? column.header}</Box></TableSortLabel>}
+    </Box>
     {resize && <Box component="span" role="separator" tabIndex={0} aria-orientation="vertical"
       aria-label={labels.resizeColumn(column.header)} aria-valuemin={80} aria-valuemax={1000} aria-valuenow={width}
-      sx={{ display: 'inline-block', verticalAlign: 'middle', ml: 1, width: 12, height: 24,
-        borderRight: 2, borderColor: 'divider', cursor: 'col-resize', touchAction: 'none', '&:focus-visible': { outline: '2px solid currentColor' } }}
+      sx={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 8, zIndex: 1,
+        borderRight: 2, borderColor: 'divider', cursor: 'col-resize', touchAction: 'none', '&:hover': { borderColor: 'primary.main' }, '&:focus-visible': { outline: '2px solid currentColor', outlineOffset: -2 } }}
       onKeyDown={event => {
         if (event.key === 'ArrowLeft' || event.key === 'ArrowRight' || event.key === 'Home' || event.key === 'End') {
           event.preventDefault();

@@ -151,7 +151,6 @@ export interface TableLabels {
   filters: string;
   applyFilters: string;
   cancelFilters: string;
-  closeFilters: string;
   emptyFilterValue: string;
   filterChip: (header: string, value: string) => string;
   removeFilter: (label: string) => string;
@@ -170,7 +169,6 @@ export interface TableLabels {
   collapseLoaded: string;
   details: string;
   columns: string;
-  closeColumns: string;
   showColumn: (header: string) => string;
   moveColumn: (header: string, direction: 'previous' | 'next') => string;
   columnWidth: (header: string) => string;
@@ -189,7 +187,7 @@ interface BaseProps<Row> {
   rows: readonly Row[];
   columns: readonly ColumnDefinition<Row>[];
   getRowId: (row: Row) => string;
-  /** Accessible table name; rendered as a caption. */
+  /** Accessible table name; rendered above the controls. */
   caption: string;
   state?: TableState;
   defaultState?: Partial<TableState>;
