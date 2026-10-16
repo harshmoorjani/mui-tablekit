@@ -29,6 +29,9 @@ const defaultLabels: TableLabels = {
 };
 
 export function DataTable<Row>(props: DataTableProps<Row>) {
+  if (props.mode === 'server' && (props.rowCount == null || props.state == null || typeof props.onStateChange !== 'function')) {
+    throw new Error('MUI Tablekit: server mode requires rowCount, state, and onStateChange.');
+  }
   const {
     rows, columns, getRowId, caption, selectable = false, renderBulkActions,
     toolbar, renderExpanded, columnControls = false, pageSizeOptions = [10, 25, 50],

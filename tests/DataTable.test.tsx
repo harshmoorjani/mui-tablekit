@@ -307,6 +307,14 @@ it('labels and operates first/last pagination buttons enabled by the application
   expect(screen.getByText('Ada')).toBeVisible();
 });
 
+it('rejects incomplete server configuration from JavaScript consumers instead of applying client operations', () => {
+  const props = { ...base, mode: 'server', rowCount: 100, state: createTableState(), onStateChange: () => {} };
+  for (const key of ['rowCount', 'state', 'onStateChange'] as const) {
+    const incomplete = { ...props, [key]: undefined } as unknown as DataTableProps<Person>;
+    expect(() => render(<DataTable {...incomplete} />)).toThrow(/server mode requires/);
+  }
+});
+
 // Server operations require a caller-owned query and total count.
 // @ts-expect-error server mode requires state and onStateChange
 const invalidServer: DataTableProps<Person> = { ...base, mode: 'server', rowCount: 100 };
