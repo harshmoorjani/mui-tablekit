@@ -54,7 +54,7 @@ Search and text filters use case-insensitive substring matching. Search matches 
 
 `filterable: true` enables a text filter. `filterType` enables a specific control: `text`, `select`, `multiselect`, `numberRange`, or `dateRange`. Set `filterable: false` to suppress its control. Select controls take `filterOptions: [{ value, label }]`; values are strings, including `"true"`/`"false"` for boolean columns. An empty string clears a single select.
 
-`FilterValue` is a string for text/select, `string[]` for multiselect, or `{ min: string, max: string }` for ranges. A custom `filter(row, query)` receives this value and replaces the built-in matching. Multiselect matches any chosen value exactly; an empty selection clears the filter. Ranges are inclusive, and either bound may be blank. Numeric ranges accept numbers or numeric strings. Date ranges use UTC days and accept `Date` values or date strings. Invalid cell values and inverted ranges do not match an active range. Filters remain available when their columns are hidden.
+`FilterValue` is a string for text/select, `string[]` for multiselect, or `{ min: string, max: string }` for ranges. A custom `filter(row, query)` receives this value and replaces the built-in matching. Multiselect matches any chosen value exactly; an empty selection clears the filter. Ranges are inclusive, and either bound may be blank. Numeric ranges accept numbers or numeric strings. Date ranges use UTC days and accept `Date` values or ISO date strings; include a timezone in timestamp strings. Impossible calendar dates, invalid cell values, and inverted ranges do not match an active range. Filters remain available when their columns are hidden.
 
 ## State
 
@@ -77,6 +77,8 @@ const [state, setState] = useState(() => createTableState({ pageSize: 25 }));
 ```
 
 State has `search`, `filters` (column ID to `FilterValue`), `sort` (`{ columnId, direction }` or `null`), zero-based `page`, positive `pageSize`, `selectedIds`, `expandedIds`, `hiddenColumnIds`, `columnOrder`, and `columnWidths`. Use `createTableState` to supply defaults. Search, filter, sort, and page-size changes reset the page. When client rows shrink, the displayed page is clamped; the next interaction reports that page. No state is persisted automatically.
+
+Treat data and state as immutable: replace the rows array, column definitions, filters, or sort object when changing them. The row model is cached by these references so selection, expansion, and layout changes do not repeat filtering/sorting. CSV and print reuse that same result.
 
 ## Selection and bulk actions
 
@@ -152,11 +154,15 @@ Scope reference: [mui-datatables documentation](https://github.com/gregnb/mui-da
 | Advanced filters | Text, select, multiselect, numeric/date ranges, custom predicates |
 | Accessibility | Semantic markup and interaction tests; release audit pending |
 
+This is not complete mui-datatables parity. Missing surfaces include removable filter chips/reset-all, custom filter-control rendering, inferred filter choices, native array-valued cells and any/all matching, switches to hide search/pagination, permanently excluded columns, row/cell styling props and header/footer/empty-content slots. Some can be supplied through controlled state, custom predicates, cell rendering, or a surrounding application component.
+
+Other upstream options not provided here include single/conditional/click-to-select selection, select-all across filtered pages, expand-all/conditional expansion, drag handles, sticky-header/body-height controls, stacked mobile views, filter confirmation dialogs, and CSV delimiter/formatter/per-column export options. Row actions can already be ordinary custom-rendered columns. Route persistence, search debouncing, and backend query translation belong in an application adapter using the controlled state API.
+
 ## Distribution
 
 ES modules and TypeScript declarations are built with `tsc`; React, MUI, and Emotion remain peer dependencies. There is no table-engine dependency or bundled copy of the UI framework.
 
-The package allowlist contains only `dist`; npm also includes the manifest, README, and license. Source tests, demo assets, and local environment files are excluded. `prepack` builds the library; `prepublishOnly` runs the full checks. Checks and releases run locally; this repository has no GitHub workflows.
+The package allowlist contains only `dist`; npm also includes the manifest, README, and license. Source tests, demo assets, and local environment files are excluded. Builds clear generated `dist` output before compilation so deleted-source artifacts cannot remain in the tarball. `prepack` builds the library; `prepublishOnly` runs the full checks. Checks and releases run locally; this repository has no GitHub workflows.
 
 Before the first release: complete the agreed feature scope, verify accessibility and browser behavior, inspect the exact tarball for secrets and unexpected files, review dependency findings, check package ownership/name availability, and authorize publication. No credentials or publishing tokens are stored here. A clean dependency audit is not a guarantee against security issues.
 
