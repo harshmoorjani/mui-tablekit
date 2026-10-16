@@ -8,6 +8,7 @@ import {
 } from '@mui/material';
 import { cellText, columnWidth, createTableState, getOrderedColumns, getView } from './model.js';
 import { ColumnControls } from './ColumnControls.js';
+import { ColumnFilter } from './ColumnFilter.js';
 import { downloadCsv, printRows } from './output.js';
 import type { DataTableProps, TableLabels, TableState } from './types.js';
 
@@ -15,6 +16,7 @@ const defaultLabels: TableLabels = {
   search: 'Search', empty: 'No matching rows', selectPage: 'Select this page',
   selectRow: id => `Select row ${id}`, selected: count => `${count} selected`,
   clearSelection: 'Clear selection', filter: header => `Filter ${header}`,
+  filterMin: header => `${header} from`, filterMax: header => `${header} to`, clearFilter: 'Any',
   sort: header => `Sort by ${header}`, rowsPerPage: 'Rows per page:',
   previousPage: 'Previous page', nextPage: 'Next page',
   expandRow: id => `Expand row ${id}`, collapseRow: id => `Collapse row ${id}`,
@@ -86,11 +88,11 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
         )}
       </Stack>
       {columnControls && <ColumnControls columns={orderedColumns} state={state} labels={labels} update={update} />}
-      {orderedColumns.some(column => column.filterable) && <Stack direction="row" useFlexGap sx={{ px: 2, pb: 2, gap: 2, flexWrap: 'wrap' }}>
-        {orderedColumns.filter(column => column.filterable).map(column => (
-          <TextField key={column.id} size="small" label={labels.filter(column.header)}
-            value={Object.hasOwn(state.filters, column.id) ? state.filters[column.id] : ''}
-            onChange={event => update({ page: 0, filters: { ...state.filters, [column.id]: event.target.value } })} />
+      {orderedColumns.some(column => column.filterable ?? Boolean(column.filterType)) && <Stack direction="row" useFlexGap sx={{ px: 2, pb: 2, gap: 2, flexWrap: 'wrap' }}>
+        {orderedColumns.filter(column => column.filterable ?? Boolean(column.filterType)).map(column => (
+          <ColumnFilter key={column.id} column={column} labels={labels}
+            value={Object.hasOwn(state.filters, column.id) ? state.filters[column.id] : undefined}
+            onChange={value => update({ page: 0, filters: { ...state.filters, [column.id]: value } })} />
         ))}
       </Stack>}
       <TableContainer>

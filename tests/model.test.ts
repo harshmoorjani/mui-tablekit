@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { columnWidth, createTableState, getOrderedColumns, getView } from '../src/model.js';
-import type { Column } from '../src/index.js';
+import type { Column, FilterValue } from '../src/index.js';
 
 const rows = [
   { id: 'a', name: 'Ada', team: 'Design', age: 40 },
@@ -31,7 +31,7 @@ describe('client row model', () => {
 
   it('supports custom comparisons and filter predicates', () => {
     const custom = columns.map(column => column.id === 'age'
-      ? { ...column, filter: (row: (typeof rows)[number], value: string) => row.age >= Number(value),
+      ? { ...column, filter: (row: (typeof rows)[number], value: FilterValue) => row.age >= Number(value),
           compare: (a: (typeof rows)[number], b: (typeof rows)[number]) => b.age - a.age }
       : column);
     expect(getView(rows, custom, createTableState({
@@ -79,4 +79,24 @@ it('normalizes persisted column order and widths after column definitions change
   expect(columnWidth({ name: Infinity }, 'name')).toBe(160);
   expect(columnWidth({ name: 10 }, 'name')).toBe(80);
   expect(columnWidth({ name: 2000 }, 'name')).toBe(1000);
+});
+
+it('combines multiselect and inclusive numeric ranges, allowing one-sided and cleared ranges', () => {
+  const state = createTableState({ filters: { team: ['Engineering', 'Design'], age: { min: '30', max: '40' } } });
+  expect(getView(rows, columns, state).rows.map(row => row.id)).toEqual(['a', 'c']);
+  expect(getView(rows, columns, { ...state, filters: { age: { min: '32', max: '' } } }).rows.map(row => row.id)).toEqual(['a', 'c']);
+  expect(getView(rows, columns, { ...state, filters: { age: { min: '', max: '' }, team: [] } }).count).toBe(3);
+  expect(getView(rows, columns, { ...state, filters: { age: { min: '40', max: '30' } } }).count).toBe(0);
+  expect(getView(rows, columns, { ...state, filters: { age: { min: 'invalid', max: '' } } }).count).toBe(0);
+});
+
+it('uses exact select matching and inclusive UTC dates', () => {
+  expect(getView(rows, [{ ...columns[1]!, filterType: 'select' }], createTableState({ filters: { team: 'Eng' } })).count).toBe(0);
+  const dated = [
+    { value: new Date('2025-01-01T00:00:00Z') },
+    { value: '2025-01-02T23:59:59.999Z' },
+    { value: '2025-01-03T00:00:00Z' }, { value: null }, { value: 'invalid' },
+  ];
+  expect(getView(dated, [{ id: 'date', header: 'Date', value: row => row.value, filterType: 'dateRange' }],
+    createTableState({ filters: { date: { min: '2025-01-01', max: '2025-01-02' } } })).rows).toEqual(dated.slice(0, 2));
 });

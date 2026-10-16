@@ -212,6 +212,41 @@ describe('DataTable', () => {
   });
 });
 
+it('combines select, multiselect, and range controls, including clearing them', async () => {
+  const user = userEvent.setup();
+  render(<DataTable {...base} defaultState={{ page: 2, pageSize: 1 }} columns={[
+    { ...columns[0]!, filterType: 'select', filterOptions: rows.map(row => ({ value: row.name, label: row.name })) },
+    { ...columns[1]!, filterType: 'multiselect', filterOptions: ['Design', 'Engineering'].map(value => ({ value, label: value })) },
+    { ...columns[2]!, filterType: 'numberRange' },
+  ]} />);
+  await user.click(screen.getByRole('combobox', { name: 'Filter Team' }));
+  await user.click(screen.getByRole('option', { name: 'Engineering' }));
+  await user.keyboard('{Escape}');
+  expect(screen.getByText('1–1 of 2')).toBeVisible();
+  fireEvent.change(screen.getByRole('spinbutton', { name: 'Age from' }), { target: { value: '30' } });
+  expect(screen.getByText('Cleo')).toBeVisible();
+  expect(screen.getByText('1–1 of 1')).toBeVisible();
+  await user.click(screen.getByRole('combobox', { name: 'Filter Name' }));
+  await user.click(screen.getByRole('option', { name: 'Ada' }));
+  expect(screen.getByText('No matching rows')).toBeVisible();
+  await user.click(screen.getByRole('combobox', { name: 'Filter Name' }));
+  await user.click(screen.getByRole('option', { name: 'Any' }));
+  fireEvent.change(screen.getByRole('spinbutton', { name: 'Age from' }), { target: { value: '' } });
+  await user.click(screen.getByRole('combobox', { name: 'Filter Team' }));
+  await user.click(screen.getByRole('option', { name: 'Engineering' }));
+  await user.keyboard('{Escape}');
+  expect(screen.getByText('1–1 of 3')).toBeVisible();
+});
+
+it('emits structured date ranges in server mode without filtering supplied rows', () => {
+  const change = vi.fn();
+  render(<DataTable {...base} columns={[{ ...columns[0]!, filterType: 'dateRange' }]}
+    mode="server" rowCount={3} state={createTableState()} onStateChange={change} />);
+  fireEvent.change(screen.getByLabelText('Name from'), { target: { value: '2025-01-01' } });
+  expect(change).toHaveBeenCalledWith(expect.objectContaining({ page: 0, filters: { name: { min: '2025-01-01', max: '' } } }));
+  expect(screen.getByText('Ada')).toBeVisible();
+});
+
 // Server operations require a caller-owned query and total count.
 // @ts-expect-error server mode requires state and onStateChange
 const invalidServer: DataTableProps<Person> = { ...base, mode: 'server', rowCount: 100 };

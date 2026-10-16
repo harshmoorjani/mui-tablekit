@@ -1,4 +1,4 @@
-import type { CellValue, Column, TableState } from './types.js';
+import type { CellValue, Column, FilterValue, TableState } from './types.js';
 
 export function createTableState(state: Partial<TableState> = {}): TableState {
   return {
@@ -32,6 +32,23 @@ function compareValues(a: CellValue, b: CellValue): number {
   return cellText(a).localeCompare(cellText(b), undefined, { numeric: true });
 }
 
+function matchesFilter<Row>(column: Column<Row>, row: Row, filter: FilterValue | undefined): boolean {
+  if (!filter || (Array.isArray(filter) && !filter.length) ||
+      (typeof filter === 'object' && !Array.isArray(filter) && !filter.min && !filter.max)) return true;
+  if (column.filter) return column.filter(row, filter);
+  const value = column.value(row);
+  if (Array.isArray(filter)) return filter.includes(cellText(value));
+  if (typeof filter === 'string') return column.filterType === 'select'
+    ? cellText(value) === filter : cellText(value).toLocaleLowerCase().includes(filter.toLocaleLowerCase());
+  if (value == null || cellText(value).trim() === '') return false;
+  const dates = column.filterType === 'dateRange';
+  const number = dates ? (value instanceof Date ? value.getTime() : Date.parse(cellText(value)))
+    : typeof value === 'number' || typeof value === 'string' ? Number(value) : NaN;
+  const min = !filter.min ? -Infinity : dates ? Date.parse(`${filter.min}T00:00:00.000Z`) : Number(filter.min);
+  const max = !filter.max ? Infinity : dates ? Date.parse(`${filter.max}T23:59:59.999Z`) : Number(filter.max);
+  return Number.isFinite(number) && number >= min && number <= max;
+}
+
 export function getView<Row>(
   rows: readonly Row[], columns: readonly Column<Row>[], state: TableState,
   serverRowCount?: number,
@@ -51,8 +68,7 @@ export function getView<Row>(
         cellText(column.value(row)).toLocaleLowerCase().includes(query))) &&
       columns.every(column => {
         const filter = Object.hasOwn(state.filters, column.id) ? state.filters[column.id] : '';
-        return !filter || (column.filter ? column.filter(row, filter) :
-          cellText(column.value(row)).toLocaleLowerCase().includes(filter.toLocaleLowerCase()));
+        return matchesFilter(column, row, filter);
       }),
     );
     const sort = state.sort;

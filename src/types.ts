@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 
 export type CellValue = string | number | boolean | Date | null | undefined;
+export type FilterValue = string | string[] | { min: string; max: string };
 
 export interface Column<Row> {
   id: string;
@@ -10,14 +11,16 @@ export interface Column<Row> {
   sortable?: boolean;
   compare?: (a: Row, b: Row) => number;
   filterable?: boolean;
-  filter?: (row: Row, query: string) => boolean;
+  filterType?: 'text' | 'select' | 'multiselect' | 'numberRange' | 'dateRange';
+  filterOptions?: readonly { value: string; label: string }[];
+  filter?: (row: Row, query: FilterValue) => boolean;
   searchable?: boolean;
   align?: 'left' | 'center' | 'right';
 }
 
 export interface TableState {
   search: string;
-  filters: Record<string, string>;
+  filters: Record<string, FilterValue>;
   sort: { columnId: string; direction: 'asc' | 'desc' } | null;
   page: number;
   pageSize: number;
@@ -36,6 +39,9 @@ export interface TableLabels {
   selected: (count: number) => string;
   clearSelection: string;
   filter: (header: string) => string;
+  filterMin: (header: string) => string;
+  filterMax: (header: string) => string;
+  clearFilter: string;
   sort: (header: string) => string;
   rowsPerPage: string;
   previousPage: string;
