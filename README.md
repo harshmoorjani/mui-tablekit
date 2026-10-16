@@ -4,7 +4,7 @@ A small, typed React table built with MUI. Independent of mui-datatables, with a
 
 Inspired by [mui-datatables](https://github.com/gregnb/mui-datatables). Upstream development appears inactive: its latest default-branch commit is from [January 2023](https://github.com/gregnb/mui-datatables/commit/e09c39cb3c5713c7c157845b3d3e4b7d77c77649). MUI Tablekit aims to carry that useful feature set forward with current React and MUI, a smaller implementation, and its own typed API.
 
-**Work in progress. Not published yet.** The first slice covers client and server data operations; it does not yet cover the full intended feature set.
+**Not published yet.** Core features are implemented; release qualification is still in progress.
 
 ## Try it
 
@@ -48,7 +48,13 @@ const people: Person[] = [
 
 Use `render(value, row)` on a column for custom cells. Values are strings, numbers, booleans, valid `Date` objects, or nullish values. Plain cell text is escaped by React. Supply `compare(a, b)` for a custom row comparator and `filter(row, query)` for a custom column predicate. `sortable: false` disables sorting; `searchable: false` excludes a column from global search. Sorting cycles ascending, descending, unsorted.
 
-Search and default filters use case-insensitive substring matching. Search matches any searchable column; column filters are combined with AND. Numeric values and dates sort by value, strings use the environment's locale, and nullish values sort last ascending. Search and filters run before sorting and pagination. Input rows are never mutated.
+Search and text filters use case-insensitive substring matching. Search matches any searchable column; column filters are combined with AND. Numeric values and dates sort by value, strings use the environment's locale, and nullish values sort last ascending. Search and filters run before sorting and pagination. Input rows are never mutated.
+
+### Filters
+
+`filterable: true` enables a text filter. `filterType` enables a specific control: `text`, `select`, `multiselect`, `numberRange`, or `dateRange`. Set `filterable: false` to suppress its control. Select controls take `filterOptions: [{ value, label }]`; values are strings, including `"true"`/`"false"` for boolean columns. An empty string clears a single select.
+
+`FilterValue` is a string for text/select, `string[]` for multiselect, or `{ min: string, max: string }` for ranges. A custom `filter(row, query)` receives this value and replaces the built-in matching. Multiselect matches any chosen value exactly; an empty selection clears the filter. Ranges are inclusive, and either bound may be blank. Numeric ranges accept numbers or numeric strings. Date ranges use UTC days and accept `Date` values or date strings. Invalid cell values and inverted ranges do not match an active range. Filters remain available when their columns are hidden.
 
 ## State
 
@@ -70,7 +76,7 @@ const [state, setState] = useState(() => createTableState({ pageSize: 25 }));
 />;
 ```
 
-State has `search`, `filters` (column ID to string), `sort` (`{ columnId, direction }` or `null`), zero-based `page`, positive `pageSize`, and `selectedIds`. Search, filter, sort, and page-size changes reset the page. When client rows shrink, the displayed page is clamped; the next interaction reports that page. No state is persisted automatically.
+State has `search`, `filters` (column ID to `FilterValue`), `sort` (`{ columnId, direction }` or `null`), zero-based `page`, positive `pageSize`, `selectedIds`, `expandedIds`, `hiddenColumnIds`, `columnOrder`, and `columnWidths`. Use `createTableState` to supply defaults. Search, filter, sort, and page-size changes reset the page. When client rows shrink, the displayed page is clamped; the next interaction reports that page. No state is persisted automatically.
 
 ## Selection and bulk actions
 
@@ -88,6 +94,22 @@ Set `selectable` to show checkboxes. `getRowId` must return a unique, nonempty s
 ```
 
 The header checkbox selects or deselects the current page. Other pages' selections remain. Selection also survives search, filtering, sorting, and refreshed rows. Bulk actions receive IDs, including selected IDs absent from the current dataset. The caller must validate those IDs and clear selection after deletion, a dataset switch, or an action where retaining it would be misleading. The table never executes a bulk action automatically.
+
+## Expansion and column layout
+
+Pass `renderExpanded(row)` to enable row details. Expansion uses stable row IDs and survives sorting, filtering, paging, and data refreshes. The toggle exposes its expanded state and references the details cell. Clear `expandedIds` when switching datasets.
+
+Set `columnControls` to show a collapsible panel for visibility, ordering, and width. Checkboxes preserve at least one visible column; move buttons support keyboard operation. Width inputs apply on blur and clamp to 80–1000 pixels. Columns can stretch to fill the table container. These controls do not alter selection, expansion, sorting, or filters.
+
+Layout is also controllable through `hiddenColumnIds`, `columnOrder`, and `columnWidths` without the panel. At least one column must remain visible. Unknown/duplicate order IDs are ignored, and new columns are appended in definition order. Only the supplied column definitions can appear.
+
+## CSV and printing
+
+Set `csvFileName="people.csv"` and/or `printable` to show the corresponding buttons. Both use visible columns in their current order, with raw accessor values rather than custom cell markup. Client output contains **all filtered, sorted rows**, across pages, regardless of selection. Server output contains **only the supplied page**; buttons say “Download page CSV” and “Print page.” Fetching an entire remote result set remains the caller's responsibility.
+
+CSV uses UTF-8 with a BOM, quoted fields, escaped quotes, and CRLF record separators. Formula-like strings (including full-width prefixes and leading control characters) receive a tab prefix; numeric values retain their type representation. This changes those strings' underlying data. See [OWASP's CSV injection guidance](https://community.owasp.org/attacks/CSV_Injection) for spreadsheet-specific limits: no CSV escaping strategy is universal across consumers.
+
+Print opens a separate text-only table in a temporary iframe. It includes the caption and data headers, excludes controls and expanded detail content, and never inserts accessor values as HTML. The browser owns the print dialog; the frame is removed afterward or after a one-minute fallback timeout. Custom print styling and rendered React cells are intentionally outside this API.
 
 ## Server data
 
@@ -110,7 +132,7 @@ The caller owns fetching, loading/error UI, debouncing, cancellation, authorizat
 
 ## Styling, localization, and accessibility
 
-Components inherit the application's MUI theme. The toolbar wraps and the table scrolls horizontally on narrow screens. Pass `labels` to replace search, filter, sort, selection, empty-state, and pagination text; function-valued labels support counts and row IDs. This release has no stacked mobile layout.
+Components inherit the application's MUI theme. Controls wrap and the table scrolls horizontally on narrow screens. Pass `labels` to replace search, filter, sort, selection, expansion, column-control, output, empty-state, and pagination text; function-valued labels support counts and row IDs. This release has no stacked mobile layout or drag handles; column ordering and sizing use keyboard-accessible controls.
 
 The table has a visible caption, scoped column headers, sort announcements, labeled inputs and checkboxes, keyboard-operable sorting, and status text for selection and empty results. Automated interaction checks do not replace screen-reader and real-browser qualification before release.
 
@@ -124,10 +146,10 @@ Scope reference: [mui-datatables documentation](https://github.com/gregnb/mui-da
 | Selection and bulk actions | Stable IDs, page selection, custom action content |
 | Custom rendering and controls | Column rendering, comparison, predicates, toolbar |
 | Responsive layout and localization | Horizontal scroll, wrapping toolbar, overridable labels |
-| Expandable rows | Pending |
-| Column visibility, ordering, resizing | Pending |
-| CSV export and printing | Pending |
-| Advanced filters | Custom predicates now; range/multiselect controls pending |
+| Expandable rows | Stable-ID details, controlled or uncontrolled |
+| Column visibility, ordering, resizing | Optional panel and controlled layout state |
+| CSV export and printing | Visible columns; filtered client results or loaded server page |
+| Advanced filters | Text, select, multiselect, numeric/date ranges, custom predicates |
 | Accessibility | Semantic markup and interaction tests; release audit pending |
 
 ## Distribution
