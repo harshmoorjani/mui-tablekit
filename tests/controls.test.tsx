@@ -45,6 +45,25 @@ it('preserves pending debounced search while selection replaces the toolbar', ()
   }
 })
 
+it('preserves pending debounced search when its field is hidden and focuses it when reopened', () => {
+  vi.useFakeTimers()
+  try {
+    render(<DataTable {...base} searchDisplay='toggle' searchDebounceMs={200} />)
+    fireEvent.click(screen.getByRole('button', {name: 'Show search'}))
+    fireEvent.change(screen.getByRole('searchbox'), {target: {value: 'b'}})
+    fireEvent.click(screen.getByRole('button', {name: 'Hide search'}))
+    act(() => vi.advanceTimersByTime(200))
+    const show = screen.getByRole('button', {name: 'Show search: b'})
+    expect(show).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByText('b')).toBeVisible()
+    fireEvent.click(show)
+    expect(screen.getByRole('searchbox')).toHaveValue('b')
+    expect(screen.getByRole('searchbox')).toHaveFocus()
+  } finally {
+    vi.useRealTimers()
+  }
+})
+
 it('paints pinned cells with the custom row background over an opaque base', () => {
   render(<DataTable {...base} columns={[{...columns[0]!, sticky: 'left'}]} rowSx={() => ({bgcolor: '#ffeecc'})} />)
   const cell = screen.getByRole('cell', {name: 'a'})

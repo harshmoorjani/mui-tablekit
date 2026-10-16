@@ -158,6 +158,11 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
   })
   const state = props.state ?? internalState
   const [searchOpen, setSearchOpen] = useState(false)
+  const searchContainer = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    if (searchOpen)
+      searchContainer.current?.querySelector<HTMLElement>('input,[role="searchbox"],[role="textbox"]')?.focus()
+  }, [searchOpen])
   const [dragSource, setDragSource] = useState<string>()
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState(false)
@@ -503,14 +508,16 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
           emit(searchOpen ? 'searchClose' : 'searchOpen')
         }}
       />}
-      {(props.searchDisplay !== 'toggle' || searchOpen) && <SearchField
-        value={state.search}
-        label={labels.search}
-        autoFocus={props.searchDisplay === 'toggle'}
-        delay={props.searchDebounceMs}
-        render={props.renderSearch}
-        onChange={search => update({search, page: 0})}
-      />}
+      <Box ref={searchContainer} sx={{display: props.searchDisplay === 'toggle' && !searchOpen ? 'none' : 'contents'}}>
+        <SearchField
+          value={state.search}
+          label={labels.search}
+          autoFocus={props.searchDisplay === 'toggle' && searchOpen}
+          delay={props.searchDebounceMs}
+          render={props.renderSearch}
+          onChange={search => update({search, page: 0})}
+        />
+      </Box>
     </> : null,
     filters: !inlineFilters && filterColumns.length ? filterControl : null,
     columns: columnControls ? <ColumnControls
