@@ -32,6 +32,7 @@ it('uses bounded numeric page entry for large server counts and preserves custom
   expect(screen.getAllByRole('option')).toHaveLength(4);
   fireEvent.change(page, { target: { value: '9000000' } }); fireEvent.blur(page);
   expect(onStateChange).toHaveBeenLastCalledWith(expect.objectContaining({ page: 8999999 }));
+  expect(page).toHaveValue(1);
   fireEvent.change(page, { target: { value: '10000001' } }); fireEvent.blur(page);
   expect(page).toHaveValue(1);
   rerender(<DataTable {...props} components={{ Pagination: props => <button onClick={() => props.onPageChange(null, 4)}>Custom page</button> }} />);

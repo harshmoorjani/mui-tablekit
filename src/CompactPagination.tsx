@@ -42,8 +42,8 @@ export function CompactPagination(inProps: TablePaginationProps & { pageLabel?: 
         onKeyDown={event => { if (event.key === 'Enter') (event.target as HTMLInputElement).blur(); }}
         onBlur={event => {
           const value = Number(event.target.value);
+          event.target.value = String(page + 1);
           if (Number.isInteger(value) && value >= 1 && value <= pages) onPageChange(null, value - 1);
-          else event.target.value = String(page + 1);
         }} />}
       <Box component="span">/ {pages}</Box>
       {button('next', page + 1, 'm9 6 6 6-6 6-1.4-1.4 4.6-4.6-4.6-4.6z')}

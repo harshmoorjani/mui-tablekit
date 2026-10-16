@@ -356,8 +356,8 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
         onKeyDown={event => { if (event.key === 'Enter') (event.target as HTMLInputElement).blur(); }}
         onBlur={event => {
           const number = Number(event.target.value);
-          if (event.target.value && Number.isInteger(number) && number >= 1 && number <= Math.max(1, Math.ceil(view.count / state.pageSize))) update({ page: number - 1 });
-          else event.target.value = String(view.page + 1);
+          event.target.value = String(view.page + 1);
+          if (Number.isInteger(number) && number >= 1 && number <= Math.max(1, Math.ceil(view.count / state.pageSize))) update({ page: number - 1 });
         }} />}
       <Pagination {...(!components.Pagination ? { pageLabel: labels.page, jumpToPage: props.jumpToPage, jumpLabel: labels.jumpToPage } : {})} component="div" count={view.count} page={view.page} rowsPerPage={state.pageSize}
         rowsPerPageOptions={[...new Set([...pageSizeOptions, state.pageSize])].sort((a, b) => a - b)} labelRowsPerPage={labels.rowsPerPage} labelDisplayedRows={labels.displayedRows}
