@@ -17,7 +17,7 @@ npm run dev
 
 Run `npm run check` for type checks, interaction tests, package compilation, and the demo build.
 
-The playground has up to 10,000 synthetic rows, feature switches, and an optional server adapter example. It contains no application data or credentials.
+Use the Example selector for the people directory (up to 10,000 synthetic rows), nested report, or server adapter. Expand Table options for feature switches. All records are synthetic; the playground contains no application data or credentials.
 
 `npm run demo:build` builds the playground into `/docs`, with relative asset paths and `.nojekyll`. Commit that folder, then configure repository Settings → Pages → Deploy from a branch → `main` → `/docs`. No workflow file or external hosting account is required; GitHub runs its own Pages deployment internally. Select Canvas or Garden for light themes, Midnight or Plum for dark themes. Pages has not been enabled or deployed by these local changes.
 
@@ -87,6 +87,8 @@ Set `filterMode="confirm"` to replace inline controls with a Filters dialog. Edi
 
 ### Search and pagination switches
 
+`caseSensitive` changes global search matching; `searchMatch(row, query, columns)` replaces it. `renderSearch({ id, label, value, onChange })` supplies a custom input. `searchDisplay="toggle"` adds a show/hide button without clearing the query. `searchDebounceMs={200}` delays updates and cancels pending input on unmount. `jumpToPage` adds a bounded page-number input committed on Enter or blur.
+
 Both default to `true`. Set `search={false}` to hide the search field and ignore stored search text during client filtering. Stored text is retained so re-enabling search restores it. Column filters still apply.
 
 Set `pagination={false}` to hide the pager and show all filtered, sorted client rows. Selection applies to those visible rows; CSV and print still use the full filtered result. Stored page size is retained for re-enabling pagination. With neither search nor other toolbar content, no empty toolbar is rendered.
@@ -117,6 +119,10 @@ State has `search`, `filters` (column ID to `FilterValue`), `sort` (`{ columnId,
 
 Treat data and state as immutable: replace the rows array, column definitions, filters, or sort object when changing them. The row model is cached by these references so selection, expansion, and layout changes do not repeat filtering/sorting. CSV and print reuse that same result.
 
+`expandedColumnIds` stores open aggregate column groups. Uncontrolled tables can opt into local storage with `storageKey="directory-view"`; saved fields are validated against current columns and exclude row selection/expansion. Unavailable storage is ignored. Keep the key fixed for the mounted table; remount with a React `key` to switch saved views. Stored state overrides `defaultState`. Controlled tables own persistence.
+
+`onAction(action, nextState)` reports initialization and table changes, including search/dialog open/close, filter confirmation, chip removal and reset. It supplements `onStateChange`; callbacks do not perform remote actions.
+
 ## Selection and bulk actions
 
 Set `selectable` to show checkboxes. `getRowId` must return a unique, nonempty string that remains stable across sorting, paging, and data refreshes. Column IDs must also be unique and nonempty.
@@ -138,6 +144,8 @@ Use `selectable="single"` for at most one selected ID and no header checkbox. If
 
 `selectOnClick` enables selection by clicking ordinary row content or focusing the row and pressing Space/Enter. Nested links, inputs, buttons, and common interactive roles keep their own behaviour. Custom interactive controls should use native elements or appropriate roles. Set `selectAllScope="filtered"` for the header checkbox to cover all eligible filtered client rows across pages. In server mode it covers only eligible supplied rows and is labeled “Select loaded rows”; it never claims to select unseen records.
 
+Use `selectionCheckboxes={false}` with `selectOnClick` for selection without checkboxes, or `selectAll={false}` to hide only the header checkbox. `selectionToolbar` accepts `inline` (default), `above`, `replace`, or `none`. `onRowsDelete(ids, loadedRows)` enables the delete button: return `false` to veto, throw/reject to show an error, or update your data on success. The table clears only the submitted selection after success and never removes caller-owned rows itself. IDs can include records absent from loaded data, so handlers must validate them.
+
 ## Expansion and column layout
 
 Pass `renderExpanded(row)` to enable row details. Expansion uses stable row IDs and survives sorting, filtering, paging, and data refreshes. The toggle exposes its expanded state and references the details cell. Clear `expandedIds` when switching datasets.
@@ -152,6 +160,45 @@ Layout is also controllable through `hiddenColumnIds`, `columnOrder`, and `colum
 
 `columnReordering` adds header drag handles; focus a handle and use Left/Right to move it with the keyboard. `columnResizing` adds pointer handles with Left/Right steps of 10 px and Home/End limits of 80/1000 px. Touch resizing uses pointer capture; ordering uses native desktop drag or keyboard controls. The existing column panel remains an alternative for all layouts.
 
+Column `hideable: false` locks visibility; `draggable: false` prevents moving the column or moving others across it in controls. `sortDescFirst` starts sorting descending; `sortReset: false` cycles only between directions. `renderHeader({ id, header })` changes the label inside the header controls.
+
+### Nested rows and columns
+
+```tsx
+import type { ColumnDefinition } from 'mui-tablekit';
+
+type Report = {
+  id: string; name: string; actual: number; planned: number;
+  children?: Report[];
+};
+const reportColumns: ColumnDefinition<Report>[] = [
+  { id: 'name', header: 'Department', value: row => row.name, sticky: 'left' },
+  {
+    id: 'performance', header: 'Performance',
+    value: row => row.actual + row.planned,
+    columns: [
+      { id: 'actual', header: 'Actual', value: row => row.actual },
+      { id: 'planned', header: 'Planned', value: row => row.planned },
+    ],
+  },
+];
+
+<DataTable caption="Report" rows={reportRows} columns={reportColumns}
+  getRowId={row => row.id} getSubRows={row => row.children}
+  defaultState={{ expandedColumnIds: ['performance'] }}
+  expandOnClick expandAll stickyHeader maxHeight={480} />;
+```
+
+Pass only roots in `rows`; `getSubRows` returns their children. IDs must be unique throughout the tree. Sorting applies to siblings; pagination counts roots and keeps their expanded descendants together. Filtering keeps matching rows and their ancestors, automatically revealing matching paths while a filter is active. Clearing filters restores stored expansion. Parent values and aggregates are supplied by your accessors; the table does not recompute totals or cascade selection. `isRowExpandable` can prevent traversing a branch. In server mode `rowCount` counts remote roots, and all operations remain limited to supplied rows.
+
+A column with `columns` is a header group. Without `value` it stays open; with `value` it toggles between the aggregate cell and its children. Groups can nest, use `expandedColumnIds` for their state, and preserve their position when collapsed after reordering. Spans and cell/header associations follow visible columns. Search and filters can use all value-bearing columns, including collapsed children. CSV headers include the group path. The [nested report example](demo/HierarchyDemo.tsx) demonstrates three row levels, nested aggregate columns, selection, deletion, and a summary.
+
+### Sticky columns
+
+Set `sticky: 'left'` or `'right'` on each column to pin. Expanded children specify their own pin settings. Pins are arranged at the corresponding edge, with cumulative offsets from column widths. `fixedSelection` also pins the checkbox and expansion columns when selection checkboxes are present. Pins use opaque themed backgrounds and retain selected-row tint. `stickyHeader` supports grouped headers with measured row heights.
+
+When pinned widths leave less than 80 px for scrolling content, horizontal pins switch off. Stacked/simple mobile layouts also turn pins off. Use scroll layout for wide reports where preserving column alignment matters.
+
 ## CSV and printing
 
 Set `csvFileName="people.csv"` and/or `printable` to show the corresponding buttons. Both use visible columns in their current order, with raw accessor values rather than custom cell markup. Client output contains **all filtered, sorted rows**, across pages, regardless of selection. Server output contains **only the supplied page**; buttons say “Download page CSV” and “Print page.” Fetching an entire remote result set remains the caller's responsibility.
@@ -161,6 +208,8 @@ CSV uses UTF-8 with a BOM, quoted fields, escaped quotes, and CRLF record separa
 Pass `csvOptions={{ delimiter: ';' }}` for another separator (one printable character other than a quote). A column's `exportable: false` omits it from CSV; `csvValue(value, row)` formats its exported scalar/array value independently of cell rendering. Formula protection runs after formatting, including for array text. These CSV settings do not change printing.
 
 Print opens a separate text-only table in a temporary iframe. It includes the caption and data headers, excludes controls and expanded detail content, and never inserts accessor values as HTML. The browser owns the print dialog; the frame is removed afterward or after a one-minute fallback timeout. Custom print styling and rendered React cells are intentionally outside this API.
+
+CSV options additionally accept `rows: 'filtered' | 'all' | 'page'` and `columns: 'visible' | 'all'`; defaults remain filtered rows and visible columns. “All” includes hidden current columns, but never excluded columns or unloaded remote rows. `transform(csv)` can return replacement CSV text or `false` to cancel download; replacement text is the caller's responsibility, including formula safety. Column `printable: false` excludes it from printing independently of CSV.
 
 ## Server data
 
@@ -193,7 +242,13 @@ Pass `labels` to replace search, filter, sort, selection, expansion, column-cont
 
 The table has a visible caption, scoped column headers, sort announcements, labeled inputs and checkboxes, keyboard-operable sorting, and status text for selection and empty results. Automated interaction checks do not replace screen-reader and real-browser qualification before release.
 
-The current interaction suite passed in Playwright Chromium 131 and Firefox 132 at 1360 px and 390 px, with no page errors, page overflow, or automated WCAG A/AA findings in the tested table/dialog states. WebKit could not start because this host lacks its required shared libraries; Safari, manual screen-reader use, and the native print dialog remain unverified. Browser engines and audit tools are temporary local test tools, not package dependencies.
+Independent browser checks passed in Playwright Chromium 131 and Firefox 132. Chromium checks covered all four themes at 1440 px and 390 px, with no page errors, page overflow, or automated WCAG A/AA findings in the tested states. Firefox covered the 10,000-row example, search/sort, nested expansion and mobile layout. WebKit could not start because this host lacks its required shared libraries; Safari, manual screen-reader use, and the native print dialog remain unverified. Browser engines and audit tools are temporary local test tools, not package dependencies.
+
+### Rendering and control overrides
+
+`components` can replace `Table`, `Head`, `Body`, `Row`, `Cell`, `Toolbar`, `Pagination`, `Checkbox`, `ExpandButton`, and `FilterChip`. Replacements must forward supplied props and preserve native table semantics, refs where applicable, labels and keyboard behavior. `renderRow(row, context, cells)` replaces a whole row; return an appropriately keyed table row and retain the supplied cells when using built-in controls. `renderSummary(filteredRows, visibleColumns)` supplies table footer rows. `onRowClick` and `onCellClick` receive row context (ID, depth, selection, expansion).
+
+`filterType: 'checkbox'` renders multiple choices with the same matching as multiselect. `filterChipLabel(value, criterion)` customizes a column's chip text; `removeFilterValue(value, criterion)` customizes removal. A criterion is an array index or `min`/`max` for ranges. Custom renderers own accessibility and treat supplied values as immutable.
 
 ## Feature coverage
 
@@ -203,15 +258,15 @@ Scope reference: [mui-datatables documentation](https://github.com/gregnb/mui-da
 | --- | --- |
 | Search, sort, filters, pagination | Client operations and controlled server state |
 | Selection and bulk actions | Stable IDs, single/multiple/conditional/click selection, filtered scope, custom actions |
-| Custom rendering and controls | Cells, filter widgets, comparison, predicates, toolbar |
-| Responsive layout and localization | Scroll/stacked views, sticky headers, height limit, overridable labels |
-| Expandable rows | Stable IDs, conditional details, expand-all, controlled or uncontrolled |
+| Custom rendering and controls | Cells, rows, headers, summary, widgets, component replacements, event hooks |
+| Responsive layout and localization | Scroll/stacked/simple views, sticky headers/columns, height limit, labels |
+| Expandable rows and columns | Nested rows, grouped/aggregate columns, conditional details, expand-all |
 | Column visibility, ordering, resizing | Exclusions, optional panel, drag/pointer/keyboard handles, controlled state |
 | CSV export and printing | Filtered results/loaded page; CSV delimiter, formatting, column exclusions |
 | Advanced filters | Arrays with any/all matching, inferred choices, custom controls, chips/reset, Apply/Cancel dialog |
-| Accessibility | Semantic markup and interaction tests; release audit pending |
+| Accessibility | Semantic markup, interaction tests, automated browser audits; manual checks pending |
 
-The previously identified feature gaps are implemented. This remains an independent API, not a drop-in mui-datatables replacement or a claim of exhaustive parity with every upstream option. Row actions are ordinary custom-rendered columns; application persistence, debouncing, and query translation use the controlled-state adapter pattern above. Server selection, expansion, CSV, and print always operate on supplied rows; remote “all results” actions require an application/backend contract.
+The previously identified feature gaps are implemented. This remains an independent API, not a drop-in mui-datatables replacement or a claim of exhaustive parity with every upstream option. Row actions are ordinary custom-rendered columns; remote queries use the controlled-state adapter pattern above. Server selection, expansion, CSV, and print always operate on supplied rows; remote “all results” actions require an application/backend contract.
 
 ## Distribution
 
@@ -219,7 +274,7 @@ ES modules and TypeScript declarations are built with `tsc`; React, MUI, and Emo
 
 The package allowlist contains only `dist`; npm also includes the manifest, README, and license. Source tests, demo assets, and local environment files are excluded. Builds clear generated `dist` output before compilation so deleted-source artifacts cannot remain in the tarball. `prepack` builds the library; `prepublishOnly` runs the full checks. Checks and releases run locally; this repository has no GitHub workflows.
 
-The current 23-file tarball passed a fresh install, strict TypeScript compilation against the public API, and React server rendering. Its allowlist and common credential-pattern checks passed, including a scan of Git history. The dependency audit reported zero vulnerabilities. No credentials or publishing tokens are stored here; these checks are not a guarantee against security issues.
+Release checks include a fresh tarball install, strict TypeScript compilation against the public API, React server rendering, allowlist and common credential-pattern checks, Git history scanning, and a dependency audit. No credentials or publishing tokens are stored here; these checks are not a guarantee against security issues.
 
 Before the first release: finish the manual accessibility/print and Safari/WebKit checks above, verify package ownership/permissions, repeat checks against the exact release tarball, and authorize publication.
 
