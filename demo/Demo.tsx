@@ -8,10 +8,12 @@ import { createTableState, DataTable } from '../src/index.js';
 import type { Column } from '../src/index.js';
 import { createPeople, locations, statuses, teams } from './data.js';
 import type { Person } from './data.js';
+import { ServerDemo } from './ServerDemo.js';
 
 const options = (values: string[]) => values.map(value => ({ value, label: value }));
 const currency = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 const columns: Column<Person>[] = [
+  { id: 'email', header: 'Email', value: row => row.email, excluded: true, filterable: false },
   { id: 'name', header: 'Name', value: row => row.name, filterType: 'text' },
   { id: 'team', header: 'Team', value: row => row.team, filterType: 'multiselect', filterOptions: options(teams),
     render: value => <Chip label={String(value)} size="small" variant="outlined" /> },
@@ -30,16 +32,22 @@ const columns: Column<Person>[] = [
     } />,
     render: value => value ? 'Yes' : 'No' },
   { id: 'projects', header: 'Projects', value: row => row.projects, align: 'right', filterType: 'numberRange' },
+  { id: 'skills', header: 'Skills', value: row => row.skills, filterType: 'multiselect' },
 ];
 
 const defaults = {
   search: true, pagination: true, filters: true, sorting: true, selection: true,
   expansion: true, columnControls: true, csv: true, print: true, customCells: true,
+  columnReordering: false, columnResizing: false, sticky: false, stacked: false,
+  confirm: false, clickSelection: false, filteredSelection: false, eligible: false, expandAll: false,
 };
 const toggles: [keyof typeof defaults, string][] = [
   ['search', 'Enable search'], ['pagination', 'Enable pagination'], ['filters', 'Column filters'],
   ['sorting', 'Sorting'], ['selection', 'Row selection'], ['expansion', 'Expandable rows'],
   ['columnControls', 'Column controls'], ['csv', 'CSV export'], ['print', 'Printing'], ['customCells', 'Custom cells'],
+  ['columnReordering', 'Drag columns'], ['columnResizing', 'Resize handles'], ['sticky', 'Sticky header'],
+  ['stacked', 'Stacked mobile layout'], ['confirm', 'Confirm filters'], ['clickSelection', 'Click to select'],
+  ['filteredSelection', 'Select across filtered pages'], ['eligible', 'Only remote rows selectable/expandable'], ['expandAll', 'Expand all control'],
 ];
 
 export function Demo() {
@@ -49,14 +57,18 @@ export function Demo() {
   const [dark, setDark] = useState(false);
   const [inspect, setInspect] = useState(false);
   const [message, setMessage] = useState('');
+  const [single, setSingle] = useState(false);
+  const [allSkills, setAllSkills] = useState(false);
+  const [server, setServer] = useState(false);
   const rows = useMemo(() => createPeople(count), [count]);
   const theme = useMemo(() => createTheme({ palette: { mode: dark ? 'dark' : 'light' } }), [dark]);
   const activeColumns = useMemo(() => columns.map(column => ({
     ...column,
-    filterable: features.filters,
+    filterable: features.filters && column.filterable !== false,
     sortable: features.sorting,
+    filterMatch: allSkills ? 'all' as const : 'any' as const,
     render: features.customCells ? column.render : undefined,
-  })), [features.filters, features.sorting, features.customCells]);
+  })), [features.filters, features.sorting, features.customCells, allSkills]);
 
   const toggleFeature = (key: keyof typeof defaults, checked: boolean) => {
     setFeatures(previous => ({ ...previous, [key]: checked }));
@@ -76,6 +88,9 @@ export function Demo() {
     setDark(false);
     setInspect(false);
     setMessage('');
+    setSingle(false);
+    setAllSkills(false);
+    setServer(false);
   };
 
   return <ThemeProvider theme={theme}>
@@ -110,6 +125,11 @@ export function Demo() {
           </TextField>
           <FormControlLabel label="Dark theme" control={<Switch checked={dark} onChange={(_, checked) => setDark(checked)} />} />
           <FormControlLabel label="Show table state" control={<Switch checked={inspect} onChange={(_, checked) => setInspect(checked)} />} />
+          <FormControlLabel label="Show server adapter example" control={<Switch checked={server} onChange={(_, checked) => setServer(checked)} />} />
+          <FormControlLabel label="Single selection" control={<Switch checked={single} onChange={(_, checked) => {
+            setSingle(checked); setState(previous => ({ ...previous, selectedIds: [] }));
+          }} />} />
+          <FormControlLabel label="Match all selected skills" control={<Switch checked={allSkills} onChange={(_, checked) => setAllSkills(checked)} />} />
         </Stack>
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: 'repeat(5, 1fr)' } }}>
           {toggles.map(([key, label]) => <FormControlLabel key={key} label={label} control={
@@ -128,7 +148,14 @@ export function Demo() {
 
       <DataTable caption="People directory" rows={rows} columns={activeColumns} getRowId={row => row.id}
         state={state} onStateChange={setState} pageSizeOptions={[10, 25, 50, 100]}
-        search={features.search} pagination={features.pagination} selectable={features.selection}
+        search={features.search} pagination={features.pagination} selectable={features.selection && (single ? 'single' : true)}
+        selectOnClick={features.clickSelection} selectAllScope={features.filteredSelection ? 'filtered' : 'page'}
+        isRowSelectable={row => !features.eligible || row.remote} isRowExpandable={row => !features.eligible || row.remote}
+        expandAll={features.expandAll} columnReordering={features.columnReordering} columnResizing={features.columnResizing}
+        stickyHeader={features.sticky} maxHeight={features.sticky ? 480 : undefined}
+        responsive={features.stacked ? 'stacked' : 'scroll'} filterMode={features.confirm ? 'confirm' : 'immediate'}
+        emptyContent={<Typography>No matching rows</Typography>}
+        rowSx={row => ({ bgcolor: row.status === 'On leave' ? 'action.hover' : undefined })}
         columnControls={features.columnControls} csvFileName={features.csv ? 'people.csv' : undefined} printable={features.print}
         renderExpanded={features.expansion ? row => <Stack spacing={0.5} sx={{ p: 2 }}>
           <Typography sx={{ fontWeight: 600 }}>{row.name} · {row.id}</Typography>
@@ -144,6 +171,7 @@ export function Demo() {
         <Typography id="state-heading" variant="h6" component="h2">Live table state</Typography>
         <Box component="pre" sx={{ m: 0, mt: 2, overflow: 'auto', maxHeight: 360, fontSize: 13 }}>{JSON.stringify(state, null, 2)}</Box>
       </Paper>}
+      {server && <ServerDemo />}
     </Container>
   </ThemeProvider>;
 }

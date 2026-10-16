@@ -16,6 +16,7 @@ export interface Person {
   joined: string;
   remote: boolean;
   projects: number;
+  skills: string[];
 }
 
 export function createPeople(count: number): Person[] {
@@ -40,6 +41,7 @@ export function createPeople(count: number): Person[] {
       joined: new Date(Date.UTC(2017 + next(9), next(12), 1 + next(28))).toISOString().slice(0, 10),
       remote: next(2) === 1,
       projects: next(13),
+      skills: [teams[index % teams.length]!, teams[(index + 2) % teams.length]!],
     };
   });
 }
