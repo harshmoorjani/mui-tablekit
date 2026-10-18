@@ -158,6 +158,32 @@ it('uses bounded numeric page entry for large server counts and preserves custom
   expect(onStateChange).toHaveBeenLastCalledWith(expect.objectContaining({page: 4}))
 })
 
+it.each([40, 700])('opens immediate filters from the left edge of an offset toolbar (%s)', async left => {
+  vi.stubGlobal('innerWidth', 1440)
+  vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(600)
+  vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(200)
+  try {
+    render(<DataTable {...base} columns={[{...columns[0]!, filterable: true}]} />)
+    const trigger = screen.getByRole('button', {name: 'Filters'})
+    vi.spyOn(trigger, 'getBoundingClientRect').mockReturnValue({
+      x: left,
+      y: 100,
+      left,
+      right: left + 40,
+      top: 100,
+      bottom: 140,
+      width: 40,
+      height: 40,
+      toJSON: () => ({})
+    })
+    await userEvent.setup().click(trigger)
+    expect(screen.getByRole('dialog', {name: 'Filters'})).toHaveStyle({left: `${left}px`})
+  } finally {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+  }
+})
+
 it('opens immediate filters from the compact toolbar and retains applied values after closing', async () => {
   const user = userEvent.setup()
   const onAction = vi.fn()

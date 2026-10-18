@@ -117,8 +117,8 @@ export function FilterPanel<Row>({
       open={open}
       anchorEl={anchor}
       onClose={close}
-      anchorOrigin={{vertical: 'bottom', horizontal: 'right'}}
-      transformOrigin={{vertical: 'top', horizontal: 'right'}}
+      anchorOrigin={{vertical: 'bottom', horizontal: 'left'}}
+      transformOrigin={{vertical: 'top', horizontal: 'left'}}
       slotProps={{
         paper: {'role': 'dialog', 'aria-label': labels.filters, 'sx': {width: 600, maxWidth: 'calc(100vw - 32px)'}}
       }}>
