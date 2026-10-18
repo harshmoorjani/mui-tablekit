@@ -118,6 +118,7 @@ export interface TableComponents {
   Pagination?: ComponentType<TablePaginationProps>
   Checkbox?: ComponentType<CheckboxProps>
   ExpandButton?: ComponentType<ButtonProps>
+  ColumnExpandIcon?: ComponentType<{expanded: boolean}>
   FilterChip?: ComponentType<ChipProps>
   Toolbar?: ElementType
   ToolbarButton?: ComponentType<ToolbarButtonProps>

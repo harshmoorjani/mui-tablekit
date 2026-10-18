@@ -75,15 +75,24 @@ it('expands nested rows with sibling sorting, root pagination, descendant filter
   expect(screen.getByRole('checkbox', {name: 'Select row b'})).toBeChecked()
 })
 
-it('collapses aggregate columns, keeps header associations and restores keyboard focus', async () => {
+it.each([false, true])('toggles column groups with keyboard focus (custom icon: %s)', async customIcon => {
   const user = userEvent.setup()
-  render(<DataTable {...base} />)
+  const ColumnExpandIcon = ({expanded}: {expanded: boolean}) => <span aria-hidden='true'>
+    {expanded ? 'custom-minus' : 'custom-plus'}
+  </span>
+  render(<DataTable {...base} components={customIcon ? {ColumnExpandIcon} : undefined} />)
   expect(screen.getByRole('cell', {name: '70'})).toBeVisible()
   const expand = screen.getByRole('button', {name: 'Expand Volume columns'})
+  expect(expand).toHaveTextContent(customIcon ? 'custom-plus' : '+')
+  expect(expand).toHaveAttribute('aria-expanded', 'false')
+  expect(expand).toHaveAttribute('data-group-toggle', 'volume')
   expand.focus()
   await user.keyboard('{Enter}')
   const collapse = screen.getByRole('button', {name: 'Collapse Volume columns'})
   expect(collapse).toHaveFocus()
+  expect(collapse).toHaveTextContent(customIcon ? 'custom-minus Volume' : '− Volume')
+  expect(collapse).toHaveAttribute('aria-expanded', 'true')
+  expect(collapse).toHaveAttribute('data-group-toggle', 'volume')
   expect(collapse.closest('th')).toHaveAttribute('colspan', '2')
   expect(screen.getByRole('columnheader', {name: 'Name'})).toHaveAttribute('rowspan', '2')
   const cell = screen.getByRole('cell', {name: '30'})

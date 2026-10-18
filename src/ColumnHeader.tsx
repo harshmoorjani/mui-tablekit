@@ -1,7 +1,7 @@
 import {useEffect, useRef, useState} from 'react'
 import {Box, Button, TableCell, TableSortLabel} from '@mui/material'
 import {columnWidth} from './model.js'
-import type {Column, TableLabels, TableState} from './types.js'
+import type {Column, TableComponents, TableLabels, TableState} from './types.js'
 import type {SxProps, Theme} from '@mui/material/styles'
 
 export function ColumnHeader<Row>({
@@ -17,6 +17,7 @@ export function ColumnHeader<Row>({
   rowSpan = 1,
   sx,
   groupToggle,
+  ColumnExpandIcon,
   dragSource,
   onDragSourceChange
 }: {
@@ -32,6 +33,7 @@ export function ColumnHeader<Row>({
   rowSpan?: number
   sx?: SxProps<Theme>
   groupToggle?: () => void
+  ColumnExpandIcon?: TableComponents['ColumnExpandIcon']
   dragSource?: string
   onDragSourceChange: (id?: string) => void
 }) {
@@ -116,7 +118,7 @@ export function ColumnHeader<Row>({
         aria-label={labels.expandColumns(column.header)}
         aria-expanded={false}
         onClick={groupToggle}>
-        +
+        {ColumnExpandIcon ? <ColumnExpandIcon expanded={false} /> : '+'}
       </Button>}
       {reorder && column.draggable !== false && <Button
         size='small'

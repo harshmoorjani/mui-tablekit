@@ -575,6 +575,7 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
   const Pagination = components.Pagination ?? CompactPagination
   const Choice = components.Checkbox ?? Checkbox
   const ExpandButton = components.ExpandButton ?? Button
+  const ColumnExpandIcon = components.ColumnExpandIcon
   const stacked = props.responsive === 'stacked' || props.responsive === 'simple'
   return <Paper variant='outlined'>
     <Typography
@@ -749,6 +750,7 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
                   groupToggle={
                     columnModel.groups.get(cell.column.id)?.value ? () => toggleGroup(cell.column!.id) : undefined
                   }
+                  ColumnExpandIcon={ColumnExpandIcon}
                   state={state}
                   labels={labels}
                   update={update}
@@ -774,7 +776,7 @@ export function DataTable<Row>(props: DataTableProps<Row>) {
                     aria-label={labels.collapseColumns(cell.header)}
                     aria-expanded
                     onClick={() => toggleGroup(cell.group!.id)}>
-                    − {cell.header}
+                    {ColumnExpandIcon ? <ColumnExpandIcon expanded /> : '−'} {cell.header}
                   </Button> : cell.header}
                 </TableCell>
               )}

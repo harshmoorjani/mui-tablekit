@@ -19,6 +19,7 @@ import type {ButtonProps, CheckboxProps, ChipProps, TablePaginationProps} from '
 import {DataTable} from '../src/index.js'
 import type {
   Column,
+  ColumnDefinition,
   DataTableProps,
   FilterControlProps,
   SearchControlProps,
@@ -140,6 +141,13 @@ function ArrowExpand({children: _children, ...props}: ButtonProps) {
   return <Button {...props} size='small' variant='outlined'>
     <span aria-hidden='true'>{props['aria-expanded'] ? '▾' : '▸'}</span>
   </Button>
+}
+// example: ColumnExpandIcon
+function CircleColumnIcon({expanded}: {expanded: boolean}) {
+  return <span aria-hidden='true'>{expanded ? '⊖' : '⊕'}</span>
+}
+function ArrowColumnIcon({expanded}: {expanded: boolean}) {
+  return <span aria-hidden='true'>{expanded ? '▾' : '▸'}</span>
 }
 // example: FilterChip
 function OutlinedFilter(props: ChipProps) {
@@ -389,6 +397,7 @@ const slots = {
   Pagination: [StepPagination, NumberPagination],
   Checkbox: [SquareCheckbox, RoundCheckbox],
   ExpandButton: [TextExpand, ArrowExpand],
+  ColumnExpandIcon: [CircleColumnIcon, ArrowColumnIcon],
   FilterChip: [OutlinedFilter, RoundedFilter],
   Toolbar: [BorderedToolbar, DashedToolbar],
   ToolbarButton: [TextAction, LabeledAction]
@@ -421,6 +430,7 @@ const descriptions: Record<string, string> = {
   Pagination: 'Previous and next / Numbered buttons',
   Checkbox: 'Square marks / Round marks',
   ExpandButton: 'Text labels / Arrow buttons',
+  ColumnExpandIcon: 'Circled signs / Directional arrows',
   FilterChip: 'Outlined / Filled rectangular',
   Toolbar: 'Ruled container / Dashed container',
   ToolbarButton: 'Text buttons / Labeled icon buttons',
@@ -446,7 +456,7 @@ export function CustomizationDemo() {
   const renderer = target in renderers ? {[target]: renderers[target as keyof typeof renderers][variant]} : {}
   const columnRenderer =
     target in columnRenderers ? {[target]: columnRenderers[target as keyof typeof columnRenderers][variant]} : {}
-  const columns: Column<Item>[] = [
+  const columns: ColumnDefinition<Item>[] = [
     {id: 'name', header: 'Item', value: row => row.name, filterable: false},
     {
       id: 'status',
@@ -459,7 +469,16 @@ export function CustomizationDemo() {
       ],
       ...columnRenderer
     },
-    {id: 'quantity', header: 'Quantity', value: row => row.quantity, align: 'right', filterable: false}
+    {
+      id: 'quantity',
+      header: 'Quantity',
+      value: row => row.quantity,
+      align: 'right',
+      filterable: false,
+      ...(target === 'ColumnExpandIcon'
+        ? {columns: [{id: 'units', header: 'Units', value: (row: Item) => row.quantity, align: 'right' as const}]}
+        : {})
+    }
   ]
   const section = source.split(`// example: ${target}\n`)[1]?.split('// example: ')[0]?.trim()
   return <Stack sx={{gap: 2}}>
