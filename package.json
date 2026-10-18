@@ -1,6 +1,6 @@
 {
   "name": "mui-tablekit",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "A small, typed React data table built with MUI.",
   "license": "Unlicense",
   "author": "Harsh Moorjani",
